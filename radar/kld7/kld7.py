@@ -1,6 +1,6 @@
-from enum import Enum
+import numpy as np
+import math
 from struct import unpack
-from collections import namedtuple
 import serial
 import time 
 
@@ -67,12 +67,74 @@ class KLD7:
         response = self.radar.read(9)
         if response[8] != 0:
             print('Error during initialisation for K-LD7')
+            return response[8]
 
         # change to higher baudrate based on the '3' value in the INIT payload
         self.radar.baudrate = 2E6
 
         return response[8]
     
+    def getTDAT(self):
+
+        r = self.sendCommand("GNFD", 8) # 8 is for TDAT
+        if (r != 0):
+            print(f'GNFD failed[{r}]')
+            return None, None, None, None
+
+        # look for header and payload
+        tdatResponse = self.radar.read(8)
+        if (tdatResponse[4] > 0):
+            readings = self.radar.read(8)
+            d, s, a, m = unpack('<HhhH', readings)
+
+            """
+            distance = np.frombuffer(d, dtype=np.uint16)
+            speed = np.frombuffer(s, dtype=np.int16)/100
+            angle =  math.radians(np.frombuffer(a, dtype=np.int16)/100)
+            magnitude = np.frombuffer(m, dtype=np.uint16)
+            """
+            
+            #return speed, distance, angle, magnitude
+            return d,s,a,m
+        
+        return None, None, None, None
+    
+    
+    def setParameter(self, name, value):
+        r = self.sendCommand(name, value)
+        if (r == 0):
+            self.getRadarParameters(); # just to be sure to be in sync
+        return r
+
+    def sendCommand(self, cmd, value):
+        header = bytes(cmd, 'utf-8')
+        payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+        v = (value).to_bytes(4, byteorder='little')
+        cmd_frame = header+payloadlength+v
+
+        self.radar.write(cmd_frame)
+
+        # get response
+        response = self.radar.read(9)
+
+        return response[8]
+    
+    def disconnect(self):
+        # disconnect from sensor 
+        payloadlength = (0).to_bytes(4, byteorder='little')
+        header = bytes("GBYE", 'utf-8')
+        cmd_frame = header+payloadlength
+        self.radar.write(cmd_frame)
+
+        # get response
+        response = self.radar.read(9)
+        if response[8] != 0:
+            print('Error during disconnecting with K-LD7')
+            
+            
+        self.radar.close()
+        return response[8]
+
     def getRadarParameters(self):
         header = bytes("GRPS", 'utf-8')
         payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
@@ -87,7 +149,6 @@ class KLD7:
             return response[8]
         
         header, payloadLength = unpack('<4sI', self.radar.read(8))
-        print(f'header[{header}] length[{payloadLength}]')
 
         self.radarParameters = self.radar.read(payloadLength)
 
@@ -115,38 +176,3 @@ class KLD7:
         self._micro_detection_retrigger,\
         self._micro_detection_sensitivity,\
          = unpack('<19s8B2b4Bb4BH2B', self.radarParameters)
-
-    
-    def setParameter(self, name, value):
-        self.sendCommand(name, value)
-
-    def sendCommand(self, cmd, value):
-        header = bytes(cmd, 'utf-8')
-        payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
-        v = (value).to_bytes(4, byteorder='little') # set baud rate to 2000000
-        cmd_frame = header+payloadlength+v
-
-        self.radar.write(cmd_frame)
-
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print(f'[{cmd}] error[{response[8]}]')
-
-        return response[8]
-    
-    def disconnect(self):
-        # disconnect from sensor 
-        payloadlength = (0).to_bytes(4, byteorder='little')
-        header = bytes("GBYE", 'utf-8')
-        cmd_frame = header+payloadlength
-        self.radar.write(cmd_frame)
-
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print('Error during disconnecting with K-LD7')
-            
-            
-        self.radar.close()
-        return response[8]

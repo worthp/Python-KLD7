@@ -15,6 +15,7 @@ def main(device):
         
     radar.getRadarParameters()
 
+    """
     print(f'radar._software_version {radar._software_version}]')
     print(f'radar._base_frequency[{radar._base_frequency}]')
     print(f'radar._maximum_speed[{radar._maximum_speed}]')
@@ -38,7 +39,18 @@ def main(device):
     print(f'radar._hold_time[{radar._hold_time}]')
     print(f'radar._micro_detection_retrigger[{radar._micro_detection_retrigger}]')
     print(f'radar._micro_detection_sensitivity[{radar._micro_detection_sensitivity}]')
+    """
     
+    r = radar.setParameter("RSPI", 0)
+    print(f'radar._maximum_speed[{radar._maximum_speed}]')
+
+    for i in range(100):
+        distance, speed, angle, magnitude = radar.getTDAT()
+        if (speed != None):
+            print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+        else:
+            print('nothing detected')
+
     r = radar.disconnect()
     print(f"radar disconnect response[{r}]")
 
