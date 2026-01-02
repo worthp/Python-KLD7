@@ -19,8 +19,32 @@ class KLD7:
         self._device = ''
         self.radar = None
         
-        self._radarParameters = None
-        
+        self._radarParameters = {
+                        "RFSE", "Restore factory settings",
+                        "RBFR", "Base frequency",
+                        "RSPI", "Maximum speed",
+                        "RRAI", "Maximum range",
+                        "THOF", "Threshold offset",
+                        "TRFT", "Tracking filter type",
+                        "VISU", "Vibration suppression",
+                        "MIRA", "Minimum detection distance",
+                        "MARA", "Maximum detection distance",
+                        "MIAN", "Minimum detection angle",
+                        "MAAN", "Maximum detection angle",
+                        "MISP", "Minimum detection speed",
+                        "MASP", "Maximum detection speed",
+                        "DEDI", "Detection direction",
+                        "RATH", "Range threshold",
+                        "ANTH", "Angle threshold",
+                        "SPTH", "Speed threshold",
+                        "DIG1", "Digital output 1",
+                        "DIG2", "Digital output 2",
+                        "DIG3", "Digital output 3",
+                        "HOLD", "Hold time",
+                        "MIDE", "Micro detection retrigger",
+                        "MIDS", "Micro detection sensitivity"
+                    }
+
         self._software_version = None # // STRING,19,Zero-terminated String,K-LD7_APP-RFB-XXXX
         self._base_frequency = None # UINT8,1,0 = Low, 1 = Middle, 2 = High,1 = Middle
         self._maximum_speed = None #UINT8,1,0 = 12.5km/h, 1 = 25km/h, 2 = 50km/h, 3 = 100km/h,1 = 25km/h
@@ -38,7 +62,7 @@ class KLD7:
         self._range_threshold = None # UINT8,1,0 – 100% of range setting,10%
         self._angle_threshold = None # INT8,1,-90° to +90°,0°
         self._speed_threshold = None # UINT8,1,0 – 100% of speed setting,50%
-        self._digital_output_1 = None # UINT8,1,0 = Direction, 1 = Angle, 2 = Range, 3 = Speed, 4 = Micro detection,0 = Direction
+        self._digital_output_1 = None # UINT8,1,0 = Direction, 1 = Angle, 2 = Range, 3 = Speed,", "= Micro detection,0 = Direction
         self._digital_output_2 = None # UINT8,1,0 = Direction, 1 = Angle, 2 = Range, 3 = Speed, 4 = Micro detection,1 = Angle
         self._digital_output_3 = None # UINT8,1,0 = Direction, 1 = Angle, 2 = Range, 3 = Speed, 4 = Micro detection,2 = Range
         self._hold_time = None # UINT16,2,1 – 7200s (1s – 2h), 120s
@@ -71,70 +95,12 @@ class KLD7:
 
         # change to higher baudrate based on the '3' value in the INIT payload
         self.radar.baudrate = 2E6
-
-        return response[8]
-    
-    def getTDAT(self):
-
-        r = self.sendCommand("GNFD", 8) # 8 is for TDAT
-        if (r != 0):
-            print(f'GNFD failed[{r}]')
-            return None, None, None, None
-
-        # look for header and payload
-        tdatResponse = self.radar.read(8)
-        if (tdatResponse[4] > 0):
-            readings = self.radar.read(8)
-            d, s, a, m = unpack('<HhhH', readings)
-
-            """
-            distance = np.frombuffer(d, dtype=np.uint16)
-            speed = np.frombuffer(s, dtype=np.int16)/100
-            angle =  math.radians(np.frombuffer(a, dtype=np.int16)/100)
-            magnitude = np.frombuffer(m, dtype=np.uint16)
-            """
-            
-            #return speed, distance, angle, magnitude
-            return d,s,a,m
         
-        return None, None, None, None
-    
-    
-    def setParameter(self, name, value):
-        r = self.sendCommand(name, value)
-        if (r == 0):
-            self.getRadarParameters(); # just to be sure to be in sync
+        # just to get them for visibility
+        r = self.getRadarParameters()
+
         return r
-
-    def sendCommand(self, cmd, value):
-        header = bytes(cmd, 'utf-8')
-        payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
-        v = (value).to_bytes(4, byteorder='little')
-        cmd_frame = header+payloadlength+v
-
-        self.radar.write(cmd_frame)
-
-        # get response
-        response = self.radar.read(9)
-
-        return response[8]
     
-    def disconnect(self):
-        # disconnect from sensor 
-        payloadlength = (0).to_bytes(4, byteorder='little')
-        header = bytes("GBYE", 'utf-8')
-        cmd_frame = header+payloadlength
-        self.radar.write(cmd_frame)
-
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print('Error during disconnecting with K-LD7')
-            
-            
-        self.radar.close()
-        return response[8]
-
     def getRadarParameters(self):
         header = bytes("GRPS", 'utf-8')
         payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
@@ -176,3 +142,103 @@ class KLD7:
         self._micro_detection_retrigger,\
         self._micro_detection_sensitivity,\
          = unpack('<19s8B2b4Bb4BH2B', self.radarParameters)
+
+    def getTDAT(self):
+
+        r = self.sendCommand("GNFD", 8) # 8 is for TDAT
+        if (r != 0):
+            print(f'GNFD failed[{r}]')
+            return None, None, None, None
+
+        # look for header and payload
+        tdatResponse = self.radar.read(8)
+        if (tdatResponse[4] > 0):
+            readings = self.radar.read(8)
+            d, s, a, m = unpack('<HhhH', readings)
+
+            """
+            distance = np.frombuffer(d, dtype=np.uint16)
+            speed = np.frombuffer(s, dtype=np.int16)/100
+            angle =  math.radians(np.frombuffer(a, dtype=np.int16)/100)
+            magnitude = np.frombuffer(m, dtype=np.uint16)
+            """
+            
+            #return speed, distance, angle, magnitude
+            return d,s,a,m
+        
+        return None, None, None, None
+    
+    def setParameter(self, name, value):
+
+        if (name not in self._radarParameters):
+            return 1
+        
+        return 0
+        #return self.sendCommand(name, value)
+
+    def sendCommand(self, cmd, value):
+        header = bytes(cmd, 'utf-8')
+        payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+        v = (value).to_bytes(4, byteorder='little') # set baud rate to 2000000
+        cmd_frame = header+payloadlength+v
+
+        self.radar.write(cmd_frame)
+
+        # get response
+        response = self.radar.read(9)
+        if response[8] != 0:
+            print(f'[{cmd}] error[{response[8]}]')
+
+        return response[8]
+    
+    def disconnect(self):
+        # disconnect from sensor 
+        payloadlength = (0).to_bytes(4, byteorder='little')
+        header = bytes("GBYE", 'utf-8')
+        cmd_frame = header+payloadlength
+        self.radar.write(cmd_frame)
+
+        # get response
+        response = self.radar.read(9)
+        if response[8] != 0:
+            print('Error during disconnecting with K-LD7')
+            
+            
+        self.radar.close()
+        return response[8]
+    
+    def version(self):
+        return "radar version"
+
+    def start(self):
+        print("KLD7 started")
+
+    def stop(self):
+        print("KLD7 started")
+        
+    def getParameterSettings(self):
+        return f"""software_version [{self._software_version}]
+            base_frequency[{self._base_frequency}]
+            maximum_speed[{self._maximum_speed}]
+            maximum_range[{self._maximum_range}]
+            threshold_offset[{self._threshold_offset}]
+            tracking_filter_type[{self._tracking_filter_type}]
+            vibration_suppression[{self._vibration_suppression}]
+            minimum_detection_distance[{self._minimum_detection_distance}]
+            maximum_detection_distance[{self._maximum_detection_distance}]
+            minimum_detection_angle[{self._minimum_detection_angle}]
+            maximum_detection_angle[{self._maximum_detection_angle}]
+            minimum_detection_speed[{self._minimum_detection_speed}]
+            maximum_detection_speed[{self._maximum_detection_speed}]
+            detection_direction[{self._detection_direction}]
+            range_threshold[{self._range_threshold}]
+            angle_threshold[{self._angle_threshold}]
+            speed_threshold[{self._speed_threshold}]
+            digital_output_1[{self._digital_output_1}]
+            digital_output_2[{self._digital_output_2}]
+            digital_output_3[{self._digital_output_3}]
+            hold_time[{self._hold_time}]
+            micro_detection_retrigger[{self._micro_detection_retrigger}]
+            micro_detection_sensitivity[{self._micro_detection_sensitivity}]
+            """
+        
