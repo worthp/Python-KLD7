@@ -118,6 +118,7 @@ class KLD7:
 
         self.radarParameters = self.radar.read(payloadLength)
 
+        # this looks weird but there is a struct.unpack about 23 lines below here
         self._software_version,\
         self._base_frequency,\
         self._maximum_speed,\
@@ -154,17 +155,10 @@ class KLD7:
         tdatResponse = self.radar.read(8)
         if (tdatResponse[4] > 0):
             readings = self.radar.read(8)
-            d, s, a, m = unpack('<HhhH', readings)
-
-            """
-            distance = np.frombuffer(d, dtype=np.uint16)
-            speed = np.frombuffer(s, dtype=np.int16)/100
-            angle =  math.radians(np.frombuffer(a, dtype=np.int16)/100)
-            magnitude = np.frombuffer(m, dtype=np.uint16)
-            """
-            
-            #return speed, distance, angle, magnitude
-            return d,s,a,m
+            distance, speed, angle, magnitude = unpack('<HhhH', readings)
+            bdistance, bspeed, bangle, bmagnitude = unpack('>HhhH', readings)
+            print(f'bed[{bdistance}] led[{distance}] readings[{readings}]')
+            return distance, speed, angle, magnitude
         
         return None, None, None, None
     

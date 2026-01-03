@@ -6,39 +6,49 @@ from web.HttpRequestHandler import handleHttpRequests
 
 radar = KLD7()
 
-def web():
-
-    t = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
-    t.start()
     
 
 def kld7(device):
-    r = radar.init(device)
-    print(f"radar init response[{r}]")
+    try:
+        r = radar.init(device)
 
-    if (r == KLD7.RESPONSE.OK):
-        print(f"radar inited[{radar._inited}] with device[{radar._device}]")
-    else:
-        print(f"radar failed to init[{r}]")
-        
-    print(radar.getParameterSettings())
-    
-    for i in range(250):
-        distance, speed, angle, magnitude = radar.getTDAT()
-        if (speed != None):
-            print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+        if (r == KLD7.RESPONSE.OK):
+            print(f"radar inited[{radar._inited}] with device[{radar._device}]")
         else:
-            print('nothing detected')
+            print(f"radar failed to init[{r}]")
+            
+        print(radar.getParameterSettings())
+        
+        while True:
+            distance, speed, angle, magnitude = radar.getTDAT()
+            if (speed != None):
+                print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+            else:
+                print('nothing detected')
+                
+            time.sleep(0.005)
 
-    r = radar.disconnect()
-    print(f"radar disconnect response[{r}]")
+    except Exception as e:
+            print(f"radar exception [{e}]")
+    finally:
+            r = radar.disconnect()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", help="which device")
-    fu = parser.parse_args()
+    args = parser.parse_args()
 
-    t = threading.Thread(target=kld7, args=(fu.device,))
-    t.start()
-    web()
+    try:
+        rthread = threading.Thread(target=kld7, args=(args.device,))
+        rthread.start()
+        rthread.join()
+
+        wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
+        wthread.start()
+        wthread.join()
+    except Exception as e:
+         print(f'caught some exception {e}')
+    finally:
+        radar.disconnect()
+        print('KLD7 exiting')
