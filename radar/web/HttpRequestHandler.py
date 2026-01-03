@@ -48,7 +48,6 @@ class HttpRequestHandler(http.BaseHTTPRequestHandler):
         
         return "404"
 
-
 def updateParam(parts):
 
     r = HttpRequestHandler._radar.setParameter(parts[0], parts[1])

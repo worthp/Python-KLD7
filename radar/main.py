@@ -16,6 +16,9 @@ def kld7(device):
             print(f"radar inited[{radar._inited}] with device[{radar._device}]")
         else:
             print(f"radar failed to init[{r}]")
+            return
+            
+        radar.setParameter('THOF', 30)
             
         print(radar.getParameterSettings())
         
@@ -42,11 +45,11 @@ if __name__ == "__main__":
     try:
         rthread = threading.Thread(target=kld7, args=(args.device,))
         rthread.start()
-        rthread.join()
 
         wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
         wthread.start()
         wthread.join()
+        rthread.join()
     except Exception as e:
          print(f'caught some exception {e}')
     finally:

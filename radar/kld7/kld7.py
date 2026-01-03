@@ -1,20 +1,23 @@
-import numpy as np
 import math
 from struct import unpack
 import serial
 import time 
+import threading
 
 class KLD7:
     class RESPONSE():
         OK = 0
-        UKNOWN_COMMAND = 1
+        UNKNOWN_COMMAND = 1
         INVALID_PARAMETER_VALUE = 2
         INVALID_RPST_VERSION = 3
         UART_ERROR = 4
         SENSOR_BUSY = 5
         TIMEOUT = 6
+        
 
     def __init__(self):
+        self.threadLock = threading.RLock()
+
         self._inited = False
         self._device = ''
         self.radar = None
@@ -70,6 +73,9 @@ class KLD7:
         self._micro_detection_sensitivity = None # UINT8,1,0-9, 0=Min. sensitivity, 9=Max. sensitvity,4 = Medium sensitivity
 
     def init(self, device):
+        if (self._inited == True):
+            return self.RESPONSE.OK
+
         self._inited = True
         self._device = device
 
@@ -102,64 +108,69 @@ class KLD7:
         return r
     
     def getRadarParameters(self):
-        header = bytes("GRPS", 'utf-8')
-        payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
-        cmd_frame = header+payloadlength
+        with self.threadLock:
 
-        self.radar.write(cmd_frame)
+            header = bytes("GRPS", 'utf-8')
+            payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+            cmd_frame = header+payloadlength
 
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print(f'[GRPS] error[{response[8]}]')
-            return response[8]
-        
-        header, payloadLength = unpack('<4sI', self.radar.read(8))
+            self.radar.write(cmd_frame)
 
-        self.radarParameters = self.radar.read(payloadLength)
+            # get response
+            response = self.radar.read(9)
+            if response[8] != 0:
+                print(f'[GRPS] error[{response[8]}]')
+                return response[8]
+            
+            header, payloadLength = unpack('<4sI', self.radar.read(8))
 
-        # this looks weird but there is a struct.unpack about 23 lines below here
-        self._software_version,\
-        self._base_frequency,\
-        self._maximum_speed,\
-        self._maximum_range,\
-        self._threshold_offset,\
-        self._tracking_filter_type,\
-        self._vibration_suppression,\
-        self._minimum_detection_distance,\
-        self._maximum_detection_distance,\
-        self._minimum_detection_angle,\
-        self._maximum_detection_angle,\
-        self._minimum_detection_speed,\
-        self._maximum_detection_speed,\
-        self._detection_direction,\
-        self._range_threshold,\
-        self._angle_threshold,\
-        self._speed_threshold,\
-        self._digital_output_1,\
-        self._digital_output_2,\
-        self._digital_output_3,\
-        self._hold_time,\
-        self._micro_detection_retrigger,\
-        self._micro_detection_sensitivity,\
-         = unpack('<19s8B2b4Bb4BH2B', self.radarParameters)
+            self.radarParameters = self.radar.read(payloadLength)
+
+            # this looks weird but there is a struct.unpack about 23 lines below here
+            self._software_version,\
+            self._base_frequency,\
+            self._maximum_speed,\
+            self._maximum_range,\
+            self._threshold_offset,\
+            self._tracking_filter_type,\
+            self._vibration_suppression,\
+            self._minimum_detection_distance,\
+            self._maximum_detection_distance,\
+            self._minimum_detection_angle,\
+            self._maximum_detection_angle,\
+            self._minimum_detection_speed,\
+            self._maximum_detection_speed,\
+            self._detection_direction,\
+            self._range_threshold,\
+            self._angle_threshold,\
+            self._speed_threshold,\
+            self._digital_output_1,\
+            self._digital_output_2,\
+            self._digital_output_3,\
+            self._hold_time,\
+            self._micro_detection_retrigger,\
+            self._micro_detection_sensitivity,\
+             = unpack('<19s8B2b4Bb4BH2B', self.radarParameters)
+         
+        return 0
 
     def getTDAT(self):
 
-        r = self.sendCommand("GNFD", 8) # 8 is for TDAT
-        if (r != 0):
-            print(f'GNFD failed[{r}]')
-            return None, None, None, None
+        with self.threadLock:
+            r = self.sendCommand("GNFD", 8) # 8 is for TDAT
+            if (r != 0):
+                print(f'GNFD failed[{r}]')
+                return None, None, None, None
 
-        # look for header and payload
-        tdatResponse = self.radar.read(8)
-        if (tdatResponse[4] > 0):
-            readings = self.radar.read(8)
-            distance, speed, angle, magnitude = unpack('<HhhH', readings)
-            bdistance, bspeed, bangle, bmagnitude = unpack('>HhhH', readings)
-            print(f'bed[{bdistance}] led[{distance}] readings[{readings}]')
-            return distance, speed, angle, magnitude
-        
+            # look for header and payload
+            tdatResponse = self.radar.read(8)
+            if (tdatResponse[4] > 0):
+                readings = self.radar.read(8)
+                distance, speed, angle, magnitude = unpack('<HhhH', readings)
+                speed = speed / 100
+                angle = math.radians(angle)/100
+                return distance, speed, angle, magnitude
+            
         return None, None, None, None
     
     def setParameter(self, name, value):
@@ -167,48 +178,42 @@ class KLD7:
         if (name not in self._radarParameters):
             return 1
         
-        return 0
-        #return self.sendCommand(name, value)
+        return self.sendCommand(name, int(value))
 
     def sendCommand(self, cmd, value):
-        header = bytes(cmd, 'utf-8')
-        payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
-        v = (value).to_bytes(4, byteorder='little') # set baud rate to 2000000
-        cmd_frame = header+payloadlength+v
+        with self.threadLock:
+            header = bytes(cmd, 'utf-8')
+            payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+            v = (value).to_bytes(4, byteorder='little')
+            cmd_frame = header+payloadlength+v
 
-        self.radar.write(cmd_frame)
+            self.radar.write(cmd_frame)
 
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print(f'[{cmd}] error[{response[8]}]')
+            # get response
+            response = self.radar.read(9)
+            if response[8] != 0:
+                print(f'[{cmd}] error[{response[8]}]')
 
         return response[8]
     
     def disconnect(self):
-        # disconnect from sensor 
-        payloadlength = (0).to_bytes(4, byteorder='little')
-        header = bytes("GBYE", 'utf-8')
-        cmd_frame = header+payloadlength
-        self.radar.write(cmd_frame)
+        with self.threadLock:
+            # disconnect from sensor 
+            payloadlength = (0).to_bytes(4, byteorder='little')
+            header = bytes("GBYE", 'utf-8')
+            cmd_frame = header+payloadlength
+            self.radar.write(cmd_frame)
 
-        # get response
-        response = self.radar.read(9)
-        if response[8] != 0:
-            print('Error during disconnecting with K-LD7')
-            
-            
-        self.radar.close()
+            # get response
+            response = self.radar.read(9)
+            if response[8] != 0:
+                print('Error during disconnecting with K-LD7')
+                
+            self.radar.close()
         return response[8]
     
     def version(self):
         return "radar version"
-
-    def start(self):
-        print("KLD7 started")
-
-    def stop(self):
-        print("KLD7 started")
         
     def getParameterSettings(self):
         return f"""software_version [{self._software_version}]
