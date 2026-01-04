@@ -127,6 +127,7 @@ def readingsPage(path):
         """
     s += '</table>'
     return s
+
     
 def hostControlPage(path):
     return f"""
