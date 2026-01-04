@@ -1,3 +1,4 @@
+import sys
 import threading
 import argparse
 import time
@@ -8,7 +9,7 @@ radar = KLD7()
 
     
 
-def kld7(device):
+def kld7(device, oneShot=False):
     try:
         r = radar.init(device)
 
@@ -18,18 +19,17 @@ def kld7(device):
             print(f"radar failed to init[{r}]")
             return
             
-        radar.setParameter('THOF', 30)
-            
-        print(radar.getParameterSettings())
-        
         while True:
             distance, speed, angle, magnitude = radar.getTDAT()
             if (speed != None):
                 print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
             else:
-                print('nothing detected')
+                sys.stdout.write('.')
+                sys.stdout.flush()
                 
-            time.sleep(0.005)
+            if (oneShot):
+                 return
+            time.sleep(0.033)
 
     except Exception as e:
             print(f"radar exception [{e}]")
@@ -43,15 +43,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        rthread = threading.Thread(target=kld7, args=(args.device,))
-        rthread.start()
-
+        rthread = threading.Thread(target=kld7, args=(args.device,), kwargs={"oneShot":False})
         wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
+
+        rthread.start()
         wthread.start()
-        wthread.join()
+
         rthread.join()
+        wthread.join()
     except Exception as e:
          print(f'caught some exception {e}')
     finally:
-        radar.disconnect()
+        if (radar._inited == True):
+            radar.disconnect()
         print('KLD7 exiting')

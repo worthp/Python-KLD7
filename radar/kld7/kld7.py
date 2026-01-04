@@ -13,7 +13,6 @@ class KLD7:
         UART_ERROR = 4
         SENSOR_BUSY = 5
         TIMEOUT = 6
-        
 
     def __init__(self):
         self.threadLock = threading.RLock()
@@ -21,31 +20,113 @@ class KLD7:
         self._inited = False
         self._device = ''
         self.radar = None
+        self._lastTDATReading = {"distance":0, "speed":0,"angle":0,"magnitude":0}
         
+        # this will hold the actual values when they are read as well
         self._radarParameters = {
-                        "RFSE", "Restore factory settings",
-                        "RBFR", "Base frequency",
-                        "RSPI", "Maximum speed",
-                        "RRAI", "Maximum range",
-                        "THOF", "Threshold offset",
-                        "TRFT", "Tracking filter type",
-                        "VISU", "Vibration suppression",
-                        "MIRA", "Minimum detection distance",
-                        "MARA", "Maximum detection distance",
-                        "MIAN", "Minimum detection angle",
-                        "MAAN", "Maximum detection angle",
-                        "MISP", "Minimum detection speed",
-                        "MASP", "Maximum detection speed",
-                        "DEDI", "Detection direction",
-                        "RATH", "Range threshold",
-                        "ANTH", "Angle threshold",
-                        "SPTH", "Speed threshold",
-                        "DIG1", "Digital output 1",
-                        "DIG2", "Digital output 2",
-                        "DIG3", "Digital output 3",
-                        "HOLD", "Hold time",
-                        "MIDE", "Micro detection retrigger",
-                        "MIDS", "Micro detection sensitivity"
+                        "software_version":{"cmd":"None", "values":None},
+                        "base_frequency":{"cmd":"RBFR", "values": {"Low":0,"Middle":1,"High":2}},
+                        "maximum_speed":{"cmd":"RSPI", "values": {"12.5km/h":0,
+                                                                  "25km/h": 1,
+                                                                  "50km/h":2,
+                                                                  "100km/h":3}},
+                        "maximum_range":{"cmd":"RRAI", "values": {
+                                                        "5m": 0,
+                                                        "10m": 1,
+                                                        "30m":2,
+                                                        "100m":3
+                                                        }},
+
+                        "threshold_offset":{"cmd":"THOF", "values":{
+                                                            "10dB":10,
+                                                            "20dB":20,
+                                                            "30dB":30,
+                                                            "40dB":40,
+                                                            "50dB":50,
+                                                            "60dB":60
+                                                            }},
+                        "tracking_filter_type":{"cmd":"TRFT", "values": {
+                                                            "Standard":0,
+                                                            "Fast":1,
+                                                            "Long":2
+                                                             }},
+
+                        "vibration_suppression":{"cmd":"VISU", "values": {
+                                                                    "None":0,
+                                                                    "Low":2,
+                                                                    "Low-Med": 4,
+                                                                    "Medium":8,
+                                                                    "Medium-High":10,
+                                                                    "High":12,
+                                                                    "Max":16
+                                                                   }},
+
+                       "minimum_detection_distance":{"cmd":"MIRA", "values": {
+                                                                    "0":0, "10":10, "20":20, "30":30, "40":40,
+                                                                    "50":50, "60":60, "70":70, "80":80,
+                                                                    "90":90, "100":100
+                                    }},
+
+                     "maximum_detection_distance":{"cmd":"MARA", "values": {
+                                                "0":0, "10":10, "20":20, "30":30, "40":40,
+                                                "50":50, "60":60, "70":70, "80":80,
+                                                "90":90, "100":100
+                                          }},
+
+                     "minimum_detection_angle":{"cmd":"MIAN", "values": {
+                                            "-90":-90, "-60":-60, "-45":-45, "-30":-30, "-15":-15,
+                                            "0":0,
+                                            "15":15, "30":30, "45":45, "60":60, "90":90,
+                                       }},
+                     "maximum_detection_angle":{"cmd":"MAAN", "values": {
+                                            "-90":-90, "-60":-60, "-45":-45, "-30":-30, "-15":-15,
+                                            "0":0,
+                                            "15":15, "30":30, "45":45, "60":60, "90":90,
+                                       }},
+                     "minimum_detection_speed":{"cmd":"MISP", "values": {
+                                            "0":0, "10":10, "20":20, "30":30, "40":40,
+                                            "50":50, "60":60, "70":70, "80":80,
+                                            "90":90, "100":100
+                                       }},
+                     "maximum_detection_speed":{"cmd":"MASP", "values": {
+                                            "0":0, "10":10, "20":20, "30":30, "40":40,
+                                            "50":50, "60":60, "70":70, "80":80,
+                                            "90":90, "100":100
+                                       }},
+                     "detection_direction":{"cmd":"DEDI", "values": {
+                                        "Approaching":0,
+                                        "Receding":1,
+                                        "Both":2
+                                       }},
+
+                     "range_threshold":{"cmd":"RATH", "values": {
+                                            "0":0, "10":10, "20":20, "30":30, "40":40,
+                                            "50":50, "60":60, "70":70, "80":80,
+                                            "90":90, "100":100
+                           }},
+                     "angle_threshold":{"cmd":"ANTH", "values": {
+                                            "-90":-90, "-60":-60, "-45":-45, "-30":-30, "-15":-15,
+                                            "0":0,
+                                            "15":15, "30":30, "45":45, "60":60, "90":90,
+                                               }},
+                     "speed_threshold":{"cmd":"SPTH", "values": {
+                                            "0":0, "10":10, "20":20, "30":30, "40":40,
+                                            "50":50, "60":60, "70":70, "80":80,
+                                            "90":90, "100":100
+                                               }},
+
+                    "digital_output_1":{"cmd":"DIG1", "values": {
+                                          "Direction":0, "Angle":1, "Range":2,
+                                          "Speed":3, "Micro detection":4,
+                                          "Not Valid":5
+                                            }},
+
+                    "digital_output_2":{"cmd":"DIG2", "values": None},
+                    "digital_output_3":{"cmd":"DIG3", "values": None},
+                    "hold_time":{"cmd":"HOLD", "values": None},
+                    "micro_detection_retrigger":{"cmd":"MIDE", "values": None},
+                    "micro_detection_sensitivity":{"cmd":"MIDS","values": None},
+                    "restore_factory_settings":{"cmd":"RFSE", "values": {"Reset":0}, "value":""}
                     }
 
         self._software_version = None # // STRING,19,Zero-terminated String,K-LD7_APP-RFB-XXXX
@@ -103,11 +184,11 @@ class KLD7:
         self.radar.baudrate = 2E6
         
         # just to get them for visibility
-        r = self.getRadarParameters()
+        r = self._getRadarParameters()
 
         return r
     
-    def getRadarParameters(self):
+    def _getRadarParameters(self):
         with self.threadLock:
 
             header = bytes("GRPS", 'utf-8')
@@ -124,7 +205,7 @@ class KLD7:
             
             header, payloadLength = unpack('<4sI', self.radar.read(8))
 
-            self.radarParameters = self.radar.read(payloadLength)
+            buf = self.radar.read(payloadLength)
 
             # this looks weird but there is a struct.unpack about 23 lines below here
             self._software_version,\
@@ -149,13 +230,39 @@ class KLD7:
             self._digital_output_3,\
             self._hold_time,\
             self._micro_detection_retrigger,\
-            self._micro_detection_sensitivity,\
-             = unpack('<19s8B2b4Bb4BH2B', self.radarParameters)
+            self._micro_detection_sensitivity\
+             = unpack('<19s8B2b4Bb4BH2B', buf)
+             
+            # makes it easier to expose the data
+            # _radarParameters also carries meta data 
+            self._radarParameters["software_version"]["value"] = self._software_version.decode("utf-8")
+            self._radarParameters["base_frequency"]["value"] = self._base_frequency
+            self._radarParameters["maximum_speed"]["value"] = self._maximum_speed
+            self._radarParameters["maximum_range"]["value"] = self._maximum_range
+            self._radarParameters["threshold_offset"]["value"] = self._threshold_offset
+            self._radarParameters["tracking_filter_type"]["value"] = self._tracking_filter_type
+            self._radarParameters["vibration_suppression"]["value"] = self._vibration_suppression
+            self._radarParameters["minimum_detection_distance"]["value"] = self._minimum_detection_distance
+            self._radarParameters["maximum_detection_distance"]["value"] = self._maximum_detection_distance
+            self._radarParameters["minimum_detection_angle"]["value"] = self._minimum_detection_angle
+            self._radarParameters["maximum_detection_angle"]["value"] = self._maximum_detection_angle
+            self._radarParameters["minimum_detection_speed"]["value"] = self._minimum_detection_speed
+            self._radarParameters["maximum_detection_speed"]["value"] = self._maximum_detection_speed
+            self._radarParameters["detection_direction"]["value"] = self._detection_direction
+            self._radarParameters["range_threshold"]["value"] = self._range_threshold
+            self._radarParameters["angle_threshold"]["value"] = self._angle_threshold
+            self._radarParameters["speed_threshold"]["value"] = self._speed_threshold
+            self._radarParameters["digital_output_1"]["value"] = self._digital_output_1
+            self._radarParameters["digital_output_2"]["value"] = self._digital_output_2
+            self._radarParameters["digital_output_3"]["value"] = self._digital_output_3
+            self._radarParameters["hold_time"]["value"] = self._hold_time
+            self._radarParameters["micro_detection_retrigger"]["value"] = self._micro_detection_retrigger
+            self._radarParameters["micro_detection_sensitivity"]["value"] = self._micro_detection_sensitivity
          
         return 0
 
-    def getTDAT(self):
 
+    def getTDAT(self):
         with self.threadLock:
             r = self.sendCommand("GNFD", 8) # 8 is for TDAT
             if (r != 0):
@@ -169,6 +276,13 @@ class KLD7:
                 distance, speed, angle, magnitude = unpack('<HhhH', readings)
                 speed = speed / 100
                 angle = math.radians(angle)/100
+                
+                # remember the last one
+                self._lastTDATReading["distance"] = distance
+                self._lastTDATReading["speed"] = speed
+                self._lastTDATReading["angle"] = angle
+                self._lastTDATReading["magnitude"] = magnitude
+
                 return distance, speed, angle, magnitude
             
         return None, None, None, None
@@ -178,14 +292,35 @@ class KLD7:
         if (name not in self._radarParameters):
             return 1
         
-        return self.sendCommand(name, int(value))
+        cmd = self._radarParameters[name]['cmd']
+        r = self.sendCommand(cmd, int(value))
+        # re-read parameters just to be sure to be we're in sync
+        if (r == 0):
+            self._getRadarParameters()
+        return r
 
     def sendCommand(self, cmd, value):
         with self.threadLock:
             header = bytes(cmd, 'utf-8')
-            payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
-            v = (value).to_bytes(4, byteorder='little')
-            cmd_frame = header+payloadlength+v
+
+            # hack for reset.
+            # it's the only cmd with zero payload except for GRPS and GBYE
+            # which aren't exposed externally cuz they have completely diff semantics
+            if (cmd != "RFSE"):
+                payloadlength = (4).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+                if (value < 0):
+                    f = True
+                else:
+                    f = False
+
+                v = (value).to_bytes(4, byteorder='little', signed=f)
+                cmd_frame = header+payloadlength+v
+            else:
+                payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
+                cmd_frame = header+payloadlength
+
+            if (cmd != "GNFD"):
+                print(f"cmd_frame[{cmd_frame}]")
 
             self.radar.write(cmd_frame)
 
@@ -211,33 +346,23 @@ class KLD7:
                 
             self.radar.close()
         return response[8]
+        
+    def getRadarParameters(self):
+        return self._radarParameters
     
-    def version(self):
-        return "radar version"
-        
-    def getParameterSettings(self):
-        return f"""software_version [{self._software_version}]
-            base_frequency[{self._base_frequency}]
-            maximum_speed[{self._maximum_speed}]
-            maximum_range[{self._maximum_range}]
-            threshold_offset[{self._threshold_offset}]
-            tracking_filter_type[{self._tracking_filter_type}]
-            vibration_suppression[{self._vibration_suppression}]
-            minimum_detection_distance[{self._minimum_detection_distance}]
-            maximum_detection_distance[{self._maximum_detection_distance}]
-            minimum_detection_angle[{self._minimum_detection_angle}]
-            maximum_detection_angle[{self._maximum_detection_angle}]
-            minimum_detection_speed[{self._minimum_detection_speed}]
-            maximum_detection_speed[{self._maximum_detection_speed}]
-            detection_direction[{self._detection_direction}]
-            range_threshold[{self._range_threshold}]
-            angle_threshold[{self._angle_threshold}]
-            speed_threshold[{self._speed_threshold}]
-            digital_output_1[{self._digital_output_1}]
-            digital_output_2[{self._digital_output_2}]
-            digital_output_3[{self._digital_output_3}]
-            hold_time[{self._hold_time}]
-            micro_detection_retrigger[{self._micro_detection_retrigger}]
-            micro_detection_sensitivity[{self._micro_detection_sensitivity}]
-            """
-        
+    def getLastTDATReading(self):
+        with self.threadLock:
+            return self._lastTDATReading
+
+    
+if (__name__ == "__main__"):
+    radar = KLD7()
+    params = radar.getRadarParameters()
+
+    for name, p in params.items():
+        print(p['cmd'])
+        if (p['values'] != None):
+            for n,v in p['values'].items():
+                print(f"<a href='/update/{name}/{v}'>{n}</a>")
+        else:
+            print ('no values')
