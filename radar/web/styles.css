@@ -1,0 +1,48 @@
+html, body {
+    background-color: gray;
+}
+body {
+  margin:0;
+}
+p {
+    color: green;
+}
+ul {
+  list-style-type: none;
+  margin: 1px;
+  background-color: #333333;
+  display: flex;
+}
+ul li a {
+  display: block;
+  color: gray;
+  padding: 0px 10px;
+  text-decoration: none;
+}
+ul li a:hover {
+  background-color: #111111;
+}
+table, th, td {
+  border-collapse: collapse;
+  border: 1px solid black;
+  width:100%
+}
+table.radar {
+  table-layout: fixed;
+}
+table.radar tr:nth-child(odd) {
+    background-color: white;
+}
+table.radar tr:nth-child(even) {
+    background-color: lightgray;
+}
+
+.parameter-name {
+  width:25%;
+}
+.parameter-value{
+  width:5%;
+}
+.parameter-updates {
+  width:80%;
+}

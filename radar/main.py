@@ -7,8 +7,6 @@ from web.HttpRequestHandler import handleHttpRequests
 
 radar = KLD7()
 
-    
-
 def kld7(device, oneShot=False):
     try:
         r = radar.init(device)
@@ -44,9 +42,9 @@ if __name__ == "__main__":
 
     try:
         rthread = threading.Thread(target=kld7, args=(args.device,), kwargs={"oneShot":False})
-        wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
-
         rthread.start()
+
+        wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
         wthread.start()
 
         rthread.join()

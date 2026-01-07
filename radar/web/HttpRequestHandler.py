@@ -1,4 +1,5 @@
 import http.server as http
+from os.path import isfile
 from kld7.kld7 import KLD7
 import threading
 import time
@@ -6,10 +7,10 @@ import time
 from collections import deque
 # Configuration
 server = None
-HOST_NAME = "localhost"
+HOST_NAME = ""
 SERVER_PORT = 8080
 
-class HttpRequestHandler(http.BaseHTTPRequestHandler):
+class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     """
     A custom handler to process HTTP requests.
     Inherits from BaseHTTPRequestHandler to override standard methods.
@@ -21,6 +22,13 @@ class HttpRequestHandler(http.BaseHTTPRequestHandler):
         self._routes[path] = handler
     
     def do_GET(self):
+        # whatta hack. if the request is for a file gotta check
+        # without the leading slash. if we have it defer to the
+        # super class to serve the file since that's what it does
+        # and does all the path translations
+        if (isfile(self.path[1:])):
+            super().do_GET()
+            return
         
         self.send_response(200)
         
@@ -29,9 +37,9 @@ class HttpRequestHandler(http.BaseHTTPRequestHandler):
         
         # Note: Content must be encoded to bytes using "utf-8"
         self.wfile.write(bytes("<html>", "utf-8"))
-        self.wfile.write(bytes("<body>", "utf-8"))
 
         self.wfile.write(bytes(self.htmlHeader(self.path), "utf-8"))
+        self.wfile.write(bytes("<body>", "utf-8"))
 
         self.wfile.write(bytes(self.pageHeader(self.path), "utf-8"))
         self.wfile.write(bytes(self.handleGetRequest(self.path), "utf-8"))
@@ -51,26 +59,20 @@ class HttpRequestHandler(http.BaseHTTPRequestHandler):
     def htmlHeader(self, path):
         return f"""\
     <head>
-        <meta http-equiv="refresh" content="3">
-        <style>
-        table, th, td {{
-          border: 1px solid black;
-          border-collapse: collapse;
-        }}
-</style>
+        <link rel='stylesheet' href='/web/styles.css'/>
     </head>
         """
 
     def pageHeader(self, path):
         return f"""\
-    <div class='pageheader'>
-    <a class='headerlink' href='/'>Home</a>
-    <a class='headerlink' href='/stats'>Stats</a>
-    <a class='headerlink' href='/readings'>Readings</a>
-    <a class='headerlink' href='/radarcontrol'>Radar Control</a>
-    <a class='headerlink' href='/hostcontrol'>Host Control</a>
-    </div>
-        """
+    <ul class="top-menu">
+        <li class="top-menu-item"><a href="/">Home</a></li>
+        <li class="top-menu-item"><a href="/readings">Readings</a></li>
+        <li class="top-menu-item"><a href="/stats">Stats</a></li>
+        <li class="top-menu-item"><a href="/radarcontrol">Radar Control</a></li>
+        <li class="top-menu-item"><a href="/hostcontrol">Host Control</a></li>
+    </ul>
+    """
 
 def updateRadarParam(path):
 
@@ -87,15 +89,22 @@ def homePage(path):
 def radarControlPage(path, updated=None):
     params = HttpRequestHandler._radar.getRadarParameters()
 
-    s = '<table>'
+    s = '<table class="radar">'
+    s = '<table class="radar"><thead><tr><th class="parameter-name">Name</th><th class="parameter-value">Value</th><th class="parameter-updates">Updates</th>'
     for name, p in params.items():
         s += "<tr>"
+        s += f"<td>{name}</td>"
+
+        value = ''
+        if ('value' in p):
+            value = p['value']
+
         if (updated == None or updated['name'] != name):
-            s += f"<td>{name}<td><td>{p['value']}</td>"
+            s += f"<td>{value}</td>"
         elif (updated['status']== 0):
-            s += f"<td>{name}<td><td style='font-weight:bold;'>{p['value']}</td>"
+            s += f"<td style='font-weight:bold;'>{value}</td>"
         else :
-            s += f"<td>{name}<td><td style='font-style:italic;'>{p['value']}</td>"
+            s += f"<td style='font-style:italic;'>{value}</td>"
             
         if (p['values'] != None):
             s += "<td>"
@@ -114,18 +123,19 @@ tdatReadings = deque([],10)
 def readingsPage(path):
     global tdatReadings
     
-    s = '<table>'
     tdatReadings.append( HttpRequestHandler._radar.getLastTDATReading().copy())
+
+    s = '<table class="radar"><thead><tr><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
     
     for reading in tdatReadings:
         s += f"""<tr>
-        <td>{reading['distance']}</td>
-        <td>{reading['speed']}</td>
-        <td>{reading['angle']}</td>
+        <td>{reading['distance']:0>4}</td>
+        <td>{reading['speed']:0>2.2f}</td>
+        <td>{reading['angle']:0>2.4f}</td>
         <td>{reading['magnitude']}</td>
         </tr>
         """
-    s += '</table>'
+    s += '</thead></table>'
     return s
 
     
