@@ -18,9 +18,12 @@ class KLD7:
         self.threadLock = threading.RLock()
 
         self._inited = False
+        self._init_time = 0
         self._device = ''
         self.radar = None
-        self._lastTDATReading = {"distance":0, "speed":0,"angle":0,"magnitude":0}
+        self._maxTDATReadings = 10
+        self._TDATReadings = []
+        self._lastTDATReadingIndex = -1
         
         # this will hold the actual values when they are read as well
         self._radarParameters = {
@@ -157,6 +160,7 @@ class KLD7:
         if (self._inited == True):
             return self.RESPONSE.OK
 
+        self._init_time = int(time.time()*1000)
         self._inited = True
         self._device = device
 
@@ -278,14 +282,28 @@ class KLD7:
                 angle = math.radians(angle)/100
                 
                 # remember the last one
-                self._lastTDATReading["distance"] = distance
-                self._lastTDATReading["speed"] = speed
-                self._lastTDATReading["angle"] = angle
-                self._lastTDATReading["magnitude"] = magnitude
+                self.addTDATReading({"distance": distance, "speed": speed, "angle": angle, "magnitude": magnitude})
 
                 return distance, speed, angle, magnitude
             
         return None, None, None, None
+
+    def addTDATReading(self, reading):
+        # need to fill it first because python is stupid
+        if (len(self._TDATReadings) < self._maxTDATReadings):
+            self._TDATReadings.append(reading)
+            self._lastTDATReadingIndex = len(self._TDATReadings)-1
+            return
+
+        # let the wrapping start
+        if (self._lastTDATReadingIndex == self._maxTDATReadings-1):
+            self._lastTDATReadingIndex = -1
+
+        self._lastTDATReadingIndex += 1
+        self._TDATReadings[self._lastTDATReadingIndex] = reading
+        
+        return
+        
     
     def setParameter(self, name, value):
 
@@ -350,9 +368,21 @@ class KLD7:
     def getRadarParameters(self):
         return self._radarParameters
     
-    def getLastTDATReading(self):
+    def getLastTDATReadings(self):
+        """
+        return array of last readings newest to oldest. newest is always top 
+        of the array. lastTDATReadingIndex is the dividing line
+        
+        :param self: Description
+        """
         with self.threadLock:
-            return self._lastTDATReading
+            readings = []
+            for i in range(self._lastTDATReadingIndex, -1, -1):
+                readings.append(self._TDATReadings[i])
+            for i in range(len(self._TDATReadings)-1, self._lastTDATReadingIndex, -1):
+                readings.append(self._TDATReadings[i])
+
+            return readings
 
     
 if (__name__ == "__main__"):

@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "KLD7",
             "type": "debugpy",
@@ -12,6 +11,13 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "args": "-d /dev/ttyUSB0"
+        },
+        {
+            "name": "Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
         }
     ]
 }

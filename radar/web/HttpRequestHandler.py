@@ -1,5 +1,6 @@
 import http.server as http
 from os.path import isfile
+import os
 from kld7.kld7 import KLD7
 import threading
 import time
@@ -21,12 +22,13 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     def addRoute(self, path, handler):
         self._routes[path] = handler
     
+    def log_message(self, format, *args):
+        return
+
     def do_GET(self):
-        # whatta hack. if the request is for a file gotta check
-        # without the leading slash. if we have it defer to the
-        # super class to serve the file since that's what it does
-        # and does all the path translations
-        if (isfile(self.path[1:])):
+        # let super class to serve the file since that's what it does
+        path = self.translate_path(self.path)
+        if (os.path.isfile(path)):
             super().do_GET()
             return
         
@@ -65,13 +67,13 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
 
     def pageHeader(self, path):
         return f"""\
-    <ul class="top-menu">
-        <li class="top-menu-item"><a href="/">Home</a></li>
-        <li class="top-menu-item"><a href="/readings">Readings</a></li>
-        <li class="top-menu-item"><a href="/stats">Stats</a></li>
-        <li class="top-menu-item"><a href="/radarcontrol">Radar Control</a></li>
-        <li class="top-menu-item"><a href="/hostcontrol">Host Control</a></li>
-    </ul>
+    <div class="topnav">
+        <a href="/">Home</a>
+        <a href="/readings">Readings</a>
+        <a href="/stats">Stats</a>
+        <a href="/radarcontrol">Radar Control</a>
+        <a href="/hostcontrol">Host Control</a>
+    </div>
     """
 
 def updateRadarParam(path):
@@ -88,9 +90,11 @@ def homePage(path):
     
 def radarControlPage(path, updated=None):
     params = HttpRequestHandler._radar.getRadarParameters()
+    s = f'''<table class="radar"><thead><tr>
+    <th class="parameter-name">Name</th>
+    <th class="parameter-value">Value</th>
+    <th class="parameter-updates">Updates</th>'''
 
-    s = '<table class="radar">'
-    s = '<table class="radar"><thead><tr><th class="parameter-name">Name</th><th class="parameter-value">Value</th><th class="parameter-updates">Updates</th>'
     for name, p in params.items():
         s += "<tr>"
         s += f"<td>{name}</td>"
@@ -119,40 +123,83 @@ def radarControlPage(path, updated=None):
 
     return s
     
-tdatReadings = deque([],10)
 def readingsPage(path):
-    global tdatReadings
+    tdatReadings = []
     
-    tdatReadings.append( HttpRequestHandler._radar.getLastTDATReading().copy())
+    tdatReadings = HttpRequestHandler._radar.getLastTDATReadings()
 
-    s = '<table class="radar"><thead><tr><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
+    duration = int((time.time() * 1000) - HttpRequestHandler._radar._init_time)
+
+    upHours = int(duration/3600000)
+    duration %= 3600000
     
-    for reading in tdatReadings:
-        s += f"""<tr>
-        <td>{reading['distance']:0>4}</td>
-        <td>{reading['speed']:0>2.2f}</td>
-        <td>{reading['angle']:0>2.4f}</td>
-        <td>{reading['magnitude']}</td>
-        </tr>
-        """
+    upMinutes = int(duration/60000)
+    duration %= 60000
+    
+    upSeconds = int(duration/1000)
+
+    s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
+    s += '<table class="radar"><thead><tr><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
+    
+    if (len(tdatReadings) > 0):
+        for reading in tdatReadings:
+            s += f"""<tr>
+            <td>{reading['distance']:0>4}</td>
+            <td>{reading['speed']:0>2.2f}</td>
+            <td>{reading['angle']:0>2.4f}</td>
+            <td>{reading['magnitude']}</td>
+            </tr>
+            """
+    else:
+        s += f"""<tr><td colspan='4'>No Readings Available</td></tr>"""
+
     s += '</thead></table>'
     return s
-
     
 def hostControlPage(path):
+    
+    with open("/proc/uptime", mode="r") as data:
+      ut = int(float(data.read().split(' ')[0]))
+            
+    d = int(ut/86400)
+    h = int((ut%86400)/3600)
+    m = int((ut%3600) / 60)
+    s = int((ut%60))
+
     return f"""
     <h2>Host Control</h2>
+    <ol>
+        <li>Booted at</li>
+        <li>Uptime</li>
+        <li>Memory Stats</li>
+        <li>Disk Stats</li>
+        <li>Camera Control(Or just reboot?</li>
+    </ol>
+    <div>Uptime {d:0>2} days {h:0>2}:{m:0>2}:{s:0>2}</div>
+    <div><a href='/hostcontrol/reboot'>Reboot</a></div>
     """
     
 def statsPage(path):
     return f"""
     <h2>Stats</h2>
     """
+    
+def hostRebootPage(path):
+    
+    print("shutting down")
+    command = "/usr/bin/sudo /sbin/shutdownx -h now"
+    import subprocess
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    output = process.communicate()[0]
+    print(output)
+
+    return hostControlPage(path)
 
 def handleHttpRequests(radar):
     HttpRequestHandler._radar = radar
 
     # order matters here. keep / at the end; longer matches at the top
+    HttpRequestHandler._routes['/hostcontrol/reboot'] = hostRebootPage
     HttpRequestHandler._routes['/hostcontrol'] = hostControlPage
     HttpRequestHandler._routes['/radarcontrol'] = radarControlPage
     HttpRequestHandler._routes['/readings'] = readingsPage
