@@ -187,7 +187,7 @@ def statsPage(path):
 def hostRebootPage(path):
     
     print("shutting down")
-    command = "/usr/bin/sudo /sbin/shutdownx -h now"
+    command = "/usr/bin/sudo /usr/sbin/reboot"
     import subprocess
     process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
     output = process.communicate()[0]
