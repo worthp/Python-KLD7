@@ -16,11 +16,10 @@
 #**************************************************************************
 import time
 import serial
-import matplotlib.pyplot as plt
 import numpy as np
 import math
 
-COM_Port = 'COM5'
+COM_Port = '/dev/ttyUSB0'
 
 # create serial object with corresponding COM Port and open it 
 com_obj=serial.Serial(COM_Port)
@@ -69,29 +68,6 @@ response_init = com_obj.read(9)
 if response_init[8] != 0:
     print('Error: Command not acknowledged')
 
-# create figure
-fig = plt.figure(figsize=(10,5))
-plt.ion()
-plt.show()
-
-# plot speed/distance
-sub1 = fig.add_subplot(121)
-point_sub1, = sub1.plot(0,0,'o',markersize=15,markerFaceColor='b',markerEdgeColor='k')
-plt.grid(True)
-plt.axis([-25, 25, 0, 1000])
-plt.title('Distance / Speed')
-plt.xlabel('Speed [km/h]')
-plt.ylabel('Distance [cm]')
-
-# plot distance/distance
-sub2 = fig.add_subplot(122)
-point_sub2, = sub2.plot(0,0,'o',markersize=15,markerFaceColor='b',markerEdgeColor='k')
-plt.grid(True)
-plt.axis([-500, 500, 0, 1000])
-plt.title('Distance / Distance \n (Green: Receding, Red: Approaching)')
-plt.xlabel('Distance [cm]')
-plt.ylabel('Distance [cm]')
-
 # readout and plot TDAT data continuously
 for ctr in range(100):
 
@@ -123,20 +99,8 @@ for ctr in range(100):
     
     if target_detected:
         # set new coordinates
-        point_sub1.set_xdata(TDAT_Speed)
-        point_sub1.set_ydata(TDAT_Distance)
+       print(f'''speed[{TDAT_Speed}] distance[{TDAT_Distance}]''')
         
-        point_sub2.set_xdata(distance_x)
-        point_sub2.set_ydata(distance_y)
-        
-        if TDAT_Speed > 0 :
-            point_sub2.set_markerfacecolor('g')
-        else:
-            point_sub2.set_markerfacecolor('r')  
-        
-        # draw figures
-        fig.canvas.draw()
-        fig.canvas.flush_events()
 
 # disconnect from sensor 
 payloadlength = (0).to_bytes(4, byteorder='little')

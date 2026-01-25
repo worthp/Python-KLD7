@@ -25,6 +25,8 @@ class KLD7:
         self._TDATReadings = []
         self._lastTDATReadingIndex = -1
         
+        self._lastTrackedReadingTime = 0
+        
         # this will hold the actual values when they are read as well
         self._radarParameters = {
                         "software_version":{"cmd":"None", "values":None},
@@ -281,8 +283,13 @@ class KLD7:
                 speed = speed / 100
                 angle = math.radians(angle)/100
                 
+                self._lastTrackedReadingTime = int(time.time() * 1000) # make secs millis
                 # remember the last one
-                self.addTDATReading({"distance": distance, "speed": speed, "angle": angle, "magnitude": magnitude})
+                self.addTDATReading({"millis": self._lastTrackedReadingTime,
+                                    "distance": distance,
+                                    "speed": speed,
+                                    "angle": angle,
+                                    "magnitude": magnitude})
 
                 return distance, speed, angle, magnitude
             
@@ -367,6 +374,9 @@ class KLD7:
         
     def getRadarParameters(self):
         return self._radarParameters
+    
+    def getLastTrackedReadingTime(self):
+        return self._lastTrackedReadingTime
     
     def getLastTDATReadings(self):
         """
