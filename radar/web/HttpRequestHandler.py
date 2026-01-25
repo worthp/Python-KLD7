@@ -38,7 +38,7 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.end_headers()
         
         # Note: Content must be encoded to bytes using "utf-8"
-        self.wfile.write(bytes("<html>", "utf-8"))
+        self.wfile.write(bytes("<!DOCTYPE html>\n<html>", "utf-8"))
 
         self.wfile.write(bytes(self.htmlHeader(self.path), "utf-8"))
         self.wfile.write(bytes("<body>", "utf-8"))
@@ -127,7 +127,15 @@ def readingsPage(path):
     tdatReadings = []
     
     tdatReadings = HttpRequestHandler._radar.getLastTDATReadings()
+    
+    # get timing of last tracked reading
+    duration = int((time.time() * 1000) - HttpRequestHandler._radar.getLastTrackedReadingTime())
+    duration %= 3600000
+    lastTrackedMinutes = int(duration/60000) 
+    duration %= 60000
+    lastTrackedSeconds = int(duration/1000)
 
+    # get timing of radar up time
     duration = int((time.time() * 1000) - HttpRequestHandler._radar._init_time)
 
     upHours = int(duration/3600000)
@@ -139,11 +147,13 @@ def readingsPage(path):
     upSeconds = int(duration/1000)
 
     s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
-    s += '<table class="radar"><thead><tr><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
+    s += f'''<p>Last Tracked Reading {lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
+    s += '<table class="radar"><thead><tr><th>Time</th><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
     
     if (len(tdatReadings) > 0):
         for reading in tdatReadings:
             s += f"""<tr>
+            <td>{reading['millis']:0>7}</td>
             <td>{reading['distance']:0>4}</td>
             <td>{reading['speed']:0>2.2f}</td>
             <td>{reading['angle']:0>2.4f}</td>
@@ -151,7 +161,7 @@ def readingsPage(path):
             </tr>
             """
     else:
-        s += f"""<tr><td colspan='4'>No Readings Available</td></tr>"""
+        s += f"""<tr><td colspan='5'>No Readings Available</td></tr>"""
 
     s += '</thead></table>'
     return s
