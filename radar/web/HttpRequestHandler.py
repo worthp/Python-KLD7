@@ -1,7 +1,7 @@
 import http.server as http
 from os.path import isfile
 import os
-from kld7.kld7 import KLD7
+from kld7.radar import KLD7
 import threading
 import time
 
@@ -18,6 +18,9 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     """
     _radar = None
     _routes = {}
+    
+    def setRadar(self, r: KLD7):
+        self._radar = r
 
     def addRoute(self, path, handler):
         self._routes[path] = handler
@@ -90,6 +93,7 @@ def homePage(path):
     
 def radarControlPage(path, updated=None):
     params = HttpRequestHandler._radar.getRadarParameters()
+    
     s = f'''<table class="radar"><thead><tr>
     <th class="parameter-name">Name</th>
     <th class="parameter-value">Value</th>
@@ -205,8 +209,7 @@ def hostRebootPage(path):
 
     return hostControlPage(path)
 
-def handleHttpRequests(radar):
-    HttpRequestHandler._radar = radar
+def handleHttpRequests(radar: KLD7):
 
     # order matters here. keep / at the end; longer matches at the top
     HttpRequestHandler._routes['/hostcontrol/reboot'] = hostRebootPage
@@ -218,6 +221,9 @@ def handleHttpRequests(radar):
     HttpRequestHandler._routes['/'] = homePage
 
     handler = HttpRequestHandler
+    print("radar [", radar, "]")
+    HttpRequestHandler._radar = radar
+    print("http radar [", HttpRequestHandler._radar, "]")
     server = http.HTTPServer((HOST_NAME, SERVER_PORT), handler)
     
     while True:

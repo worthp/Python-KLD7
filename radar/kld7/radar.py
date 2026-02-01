@@ -1,3 +1,4 @@
+import sys
 import math
 from struct import unpack
 import serial
@@ -392,17 +393,25 @@ class KLD7:
             for i in range(len(self._TDATReadings)-1, self._lastTDATReadingIndex, -1):
                 readings.append(self._TDATReadings[i])
 
-            return readings
+        return readings
 
     
-if (__name__ == "__main__"):
-    radar = KLD7()
-    params = radar.getRadarParameters()
+def run(radar: KLD7, oneShot=False):
 
-    for name, p in params.items():
-        print(p['cmd'])
-        if (p['values'] != None):
-            for n,v in p['values'].items():
-                print(f"<a href='/update/{name}/{v}'>{n}</a>")
-        else:
-            print ('no values')
+    try:
+        while True:
+            distance, speed, angle, magnitude = radar.getTDAT()
+            if (speed != None):
+                print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+            else:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+                
+            if (oneShot):
+                 return
+            time.sleep(0.033)
+
+    except Exception as e:
+            print(f"radar exception [{e}]")
+    finally:
+            r = radar.disconnect()

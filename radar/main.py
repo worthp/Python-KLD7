@@ -2,37 +2,9 @@ import sys
 import threading
 import argparse
 import time
-from kld7.kld7 import KLD7
+from kld7.radar import KLD7, run
+
 from web.HttpRequestHandler import handleHttpRequests
-
-radar = KLD7()
-
-def kld7(device, oneShot=False):
-    try:
-        r = radar.init(device)
-
-        if (r == KLD7.RESPONSE.OK):
-            print(f"radar inited[{radar._inited}] with device[{radar._device}]")
-        else:
-            print(f"radar failed to init[{r}]")
-            return
-            
-        while True:
-            distance, speed, angle, magnitude = radar.getTDAT()
-            if (speed != None):
-                print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
-            else:
-                sys.stdout.write('.')
-                sys.stdout.flush()
-                
-            if (oneShot):
-                 return
-            time.sleep(0.033)
-
-    except Exception as e:
-            print(f"radar exception [{e}]")
-    finally:
-            r = radar.disconnect()
 
 
 if __name__ == "__main__":
@@ -41,7 +13,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        rthread = threading.Thread(target=kld7, args=(args.device,), kwargs={"oneShot":False})
+        radar = KLD7()
+        r = radar.init(args.device)
+
+        if (r == KLD7.RESPONSE.OK):
+            print(f"radar inited[{radar._inited}] with device[{args.device}]")
+        else:
+            print(f"radar failed to init[{r}] with device[{args.device}]")
+            exit
+            
+        rthread = threading.Thread(target=run, args=(radar,), kwargs={"oneShot":False})
         rthread.start()
 
         wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
