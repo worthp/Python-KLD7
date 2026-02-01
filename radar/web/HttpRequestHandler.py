@@ -221,9 +221,7 @@ def handleHttpRequests(radar: KLD7):
     HttpRequestHandler._routes['/'] = homePage
 
     handler = HttpRequestHandler
-    print("radar [", radar, "]")
     HttpRequestHandler._radar = radar
-    print("http radar [", HttpRequestHandler._radar, "]")
     server = http.HTTPServer((HOST_NAME, SERVER_PORT), handler)
     
     while True:
