@@ -15,18 +15,16 @@ class KLD7:
         SENSOR_BUSY = 5
         TIMEOUT = 6
 
+    def __del__(self):
+        self.disconnect()
+
     def __init__(self):
         self.threadLock = threading.RLock()
 
         self._inited = False
         self._init_time = 0
         self._device = ''
-        self.radar = None
-        self._maxTDATReadings = 10
-        self._TDATReadings = []
-        self._lastTDATReadingIndex = -1
-        
-        self._lastTrackedReadingTime = 0
+        self.serialPort = None
         
         # this will hold the actual values when they are read as well
         self._radarParameters = {
@@ -164,34 +162,34 @@ class KLD7:
             return self.RESPONSE.OK
 
         self._init_time = int(time.time()*1000)
-        self._inited = True
         self._device = device
 
         # create serial object with corresponding COM Port and open it 
-        self.radar =serial.Serial(self._device)
-        self.radar.baudrate=115200
-        self.radar.parity=serial.PARITY_EVEN
-        self.radar.stopbits=serial.STOPBITS_ONE
-        self.radar.bytesize=serial.EIGHTBITS
+        self.serialPort =serial.Serial(self._device)
+        self.serialPort.baudrate=115200
+        self.serialPort.parity=serial.PARITY_EVEN
+        self.serialPort.stopbits=serial.STOPBITS_ONE
+        self.serialPort.bytesize=serial.EIGHTBITS
 
         # connect to sensor and set baudrate 
         payloadlength = (4).to_bytes(4, byteorder='little')
         value = (3).to_bytes(4, byteorder='little') # set baud rate to 2000000
         header = bytes("INIT", 'utf-8')
         cmd_init = header+payloadlength+value
-        self.radar.write(cmd_init)
+        self.serialPort.write(cmd_init)
 
         # get response
-        response = self.radar.read(9)
+        response = self.serialPort.read(9)
         if response[8] != 0:
             print('Error during initialisation for K-LD7')
             return response[8]
 
         # change to higher baudrate based on the '3' value in the INIT payload
-        self.radar.baudrate = 2E6
+        self.serialPort.baudrate = 2E6
         
         # just to get them for visibility
         r = self._getRadarParameters()
+        self._inited = True
 
         return r
     
@@ -202,17 +200,17 @@ class KLD7:
             payloadlength = (0).to_bytes(4, byteorder='little') # all commands except grps and srps are 4 byte payloads
             cmd_frame = header+payloadlength
 
-            self.radar.write(cmd_frame)
+            self.serialPort.write(cmd_frame)
 
             # get response
-            response = self.radar.read(9)
+            response = self.serialPort.read(9)
             if response[8] != 0:
                 print(f'[GRPS] error[{response[8]}]')
                 return response[8]
             
-            header, payloadLength = unpack('<4sI', self.radar.read(8))
+            header, payloadLength = unpack('<4sI', self.serialPort.read(8))
 
-            buf = self.radar.read(payloadLength)
+            buf = self.serialPort.read(payloadLength)
 
             # this looks weird but there is a struct.unpack about 23 lines below here
             self._software_version,\
@@ -277,41 +275,19 @@ class KLD7:
                 return None, None, None, None
 
             # look for header and payload
-            tdatResponse = self.radar.read(8)
+            tdatResponse = self.serialPort.read(8)
             if (tdatResponse[4] > 0):
-                readings = self.radar.read(8)
+                readings = self.serialPort.read(8)
                 distance, speed, angle, magnitude = unpack('<HhhH', readings)
                 speed = speed / 100
                 angle = math.radians(angle)/100
                 
                 self._lastTrackedReadingTime = int(time.time() * 1000) # make secs millis
-                # remember the last one
-                self.addTDATReading({"millis": self._lastTrackedReadingTime,
-                                    "distance": distance,
-                                    "speed": speed,
-                                    "angle": angle,
-                                    "magnitude": magnitude})
 
                 return distance, speed, angle, magnitude
             
         return None, None, None, None
 
-    def addTDATReading(self, reading):
-        # need to fill it first because python is stupid
-        if (len(self._TDATReadings) < self._maxTDATReadings):
-            self._TDATReadings.append(reading)
-            self._lastTDATReadingIndex = len(self._TDATReadings)-1
-            return
-
-        # let the wrapping start
-        if (self._lastTDATReadingIndex == self._maxTDATReadings-1):
-            self._lastTDATReadingIndex = -1
-
-        self._lastTDATReadingIndex += 1
-        self._TDATReadings[self._lastTDATReadingIndex] = reading
-        
-        return
-        
     
     def setParameter(self, name, value):
 
@@ -326,6 +302,9 @@ class KLD7:
         return r
 
     def sendCommand(self, cmd, value):
+        if (not self._inited):
+            return
+
         with self.threadLock:
             header = bytes(cmd, 'utf-8')
 
@@ -348,10 +327,10 @@ class KLD7:
             if (cmd != "GNFD"):
                 print(f"cmd_frame[{cmd_frame}]")
 
-            self.radar.write(cmd_frame)
+            self.serialPort.write(cmd_frame)
 
             # get response
-            response = self.radar.read(9)
+            response = self.serialPort.read(9)
             if response[8] != 0:
                 print(f'[{cmd}] error[{response[8]}]')
 
@@ -363,14 +342,14 @@ class KLD7:
             payloadlength = (0).to_bytes(4, byteorder='little')
             header = bytes("GBYE", 'utf-8')
             cmd_frame = header+payloadlength
-            self.radar.write(cmd_frame)
+            self.serialPort.write(cmd_frame)
 
             # get response
-            response = self.radar.read(9)
+            response = self.serialPort.read(9)
             if response[8] != 0:
                 print('Error during disconnecting with K-LD7')
                 
-            self.radar.close()
+            self.serialPort.close()
         return response[8]
         
     def getRadarParameters(self):
@@ -378,40 +357,3 @@ class KLD7:
     
     def getLastTrackedReadingTime(self):
         return self._lastTrackedReadingTime
-    
-    def getLastTDATReadings(self):
-        """
-        return array of last readings newest to oldest. newest is always top 
-        of the array. lastTDATReadingIndex is the dividing line
-        
-        :param self: Description
-        """
-        with self.threadLock:
-            readings = []
-            for i in range(self._lastTDATReadingIndex, -1, -1):
-                readings.append(self._TDATReadings[i])
-            for i in range(len(self._TDATReadings)-1, self._lastTDATReadingIndex, -1):
-                readings.append(self._TDATReadings[i])
-
-        return readings
-
-    
-def run(radar: KLD7, oneShot=False):
-
-    try:
-        while True:
-            distance, speed, angle, magnitude = radar.getTDAT()
-            if (speed != None):
-                print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
-            else:
-                sys.stdout.write('.')
-                sys.stdout.flush()
-                
-            if (oneShot):
-                 return
-            time.sleep(0.033)
-
-    except Exception as e:
-            print(f"radar exception [{e}]")
-    finally:
-            r = radar.disconnect()
