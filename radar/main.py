@@ -2,10 +2,10 @@ import sys
 import threading
 import argparse
 import time
-from kld7.radar import KLD7, run
+from kld7.radar import KLD7
+from controller.controller import Controller
 
-from web.HttpRequestHandler import handleHttpRequests
-
+from web.web import HttpInterface
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -13,19 +13,30 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
+
         radar = KLD7()
-        r = radar.init(args.device)
+        try:
+            r = radar.init(args.device)
 
-        if (r == KLD7.RESPONSE.OK):
-            print(f"radar inited[{radar._inited}] with device[{args.device}]")
-        else:
-            print(f"radar failed to init[{r}] with device[{args.device}]")
-            exit
+            if (r == KLD7.RESPONSE.OK):
+                print(f"radar inited[{radar._inited}] with device[{args.device}]")
+            else:
+                print(f"radar failed to init[{r}] with device[{args.device}]")
+                exit
+        except Exception as e:
+            print (e)
             
-        rthread = threading.Thread(target=run, args=(radar,), kwargs={"oneShot":False})
-        rthread.start()
 
-        wthread = threading.Thread(target=handleHttpRequests, args=(radar,), kwargs={})
+        camera = None
+        controller = Controller()
+        controller.init(radar, camera)
+
+        wif = HttpInterface()
+        wif.init(controller)
+
+        rthread = threading.Thread(target=controller.run)
+        wthread = threading.Thread(target=wif.go, kwargs={})
+        rthread.start()
         wthread.start()
 
         rthread.join()
