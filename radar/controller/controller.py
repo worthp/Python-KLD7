@@ -6,6 +6,7 @@ from kld7.radar import KLD7
 
 class Controller:
     def __init__ (self):
+        self.isStopped = False
         self.radar:KLD7 = None
         self.camera = None
         self._maxTDATReadings = 10
@@ -23,6 +24,9 @@ class Controller:
         self.radar = None
         self.camera = None
         return
+
+    def stop(self):
+        self.isStopped = True
     
     #def init(self, radar:KLD7, camera:Picam):
     def init(self, radar:KLD7, camera):
@@ -76,27 +80,34 @@ class Controller:
         if (not self.radar._inited):
             print("radar is not inited")
             return
-            
-        counter = 0
-        while True:
-            distance, speed, angle, magnitude = self.radar.getTDAT()
-            if (speed != None):
-                counter = 0
-
-                # remember the last one
-                self.addTDATReading({"millis": self._lastTrackedReadingTime,
-                                "distance": distance,
-                                "speed": speed,
-                                "angle": angle,
-                                "magnitude": magnitude})
-
-                print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
-            else:
-                if (counter > 1000):
-                    sys.stdout.write('*')
-                    sys.stdout.flush()
+        
+        try:
+            counter = 0
+            while not self.isStopped:
+                distance, speed, angle, magnitude = self.radar.getTDAT()
+                if (speed != None):
                     counter = 0
 
-                counter += 1
+                    # remember the last one
+                    self.addTDATReading({"millis": self._lastTrackedReadingTime,
+                                    "distance": distance,
+                                    "speed": speed,
+                                    "angle": angle,
+                                    "magnitude": magnitude})
+
+                    print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+                else:
+                    if (counter > 200):
+                        sys.stdout.write('*')
+                        sys.stdout.flush()
+                        counter = 0
+
+                    counter += 1
+                    
+                time.sleep(0.033)
                 
-            time.sleep(0.033)
+            print(f'''controller was stopped''')
+        except Exception as e:
+            print(f'''Caught Exception [{e}]''')
+            self.radar.disconnect()
+            return

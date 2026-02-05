@@ -337,7 +337,11 @@ class KLD7:
         return response[8]
     
     def disconnect(self):
+        if (self._inited == False):
+            return
+        print(f'''KLD7 shutting down ...''')
         with self.threadLock:
+            print(f'''sending BYE to sensor''')
             # disconnect from sensor 
             payloadlength = (0).to_bytes(4, byteorder='little')
             header = bytes("GBYE", 'utf-8')
@@ -346,10 +350,14 @@ class KLD7:
 
             # get response
             response = self.serialPort.read(9)
-            if response[8] != 0:
+            if response[8] == 0:
+                print('KLD7 acknowledged BYE')
+            else:
                 print('Error during disconnecting with K-LD7')
                 
+            print(f'''closing [{self._device}]''')
             self.serialPort.close()
+            self._inited = False
         return response[8]
         
     def getRadarParameters(self):

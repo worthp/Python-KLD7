@@ -1,3 +1,4 @@
+import sys
 import http.server as http
 from os.path import isfile
 import os
@@ -25,6 +26,8 @@ class HttpInterface:
         self.routes['/stats'] = self.statsPage
         self.routes['/update'] = self.updateRadarParam
         self.routes['/'] = self.homePage
+        
+        self.isStopped = False
         return
     
     def __del__(self):
@@ -34,6 +37,9 @@ class HttpInterface:
     def init(self, controller:Controller):
         self.controller = controller
         return
+
+    def stop(self):
+        self.isStopped = True
 
     def updateRadarParam(self, path):
 
@@ -197,8 +203,13 @@ class HttpInterface:
         handler = HttpRequestHandler
         handler.http_interface = self
         self.server = http.HTTPServer((HOST_NAME, SERVER_PORT), handler)
+        self.server.timeout = 1
         
-        self.server.serve_forever()
+        while (not self.isStopped):
+            self.server.handle_request()
+
+        print(f'''web interface was stopped''')
+
 
 class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     """
