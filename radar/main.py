@@ -4,11 +4,12 @@ import threading
 import argparse
 import time
 from kld7.radar import KLD7
+from camera.picam import Picam
 from controller.controller import Controller
 
 from web.web import HttpInterface
 
-camera = None
+camera = Picam()
 wif = HttpInterface()
 controller = Controller()
 
@@ -38,6 +39,7 @@ def main():
             print(f"radar failed to init[{r}] with device[{args.device}]")
             exit
 
+        print(f'''camera [{camera}]''')
         controller.init(radar, camera)
         wif.init(controller)
 

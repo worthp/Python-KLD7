@@ -2,15 +2,18 @@ import sys
 import time
 import threading
 from kld7.radar import KLD7
-#from camera.picam import Picam
+from camera.picam import Picam
 
 class Controller:
     def __init__ (self):
         self.isStopped = False
         self.radar:KLD7 = None
+        self.speed_threshhold = 5.0
+
         self.camera = None
-        self._maxTDATReadings = 10
+
         self._TDATReadings = []
+        self._maxTDATReadings = 10
         self._lastTDATReadingIndex = -1
         
         self._lastTrackedReadingTime = 0
@@ -28,9 +31,9 @@ class Controller:
     def stop(self):
         self.isStopped = True
     
-    #def init(self, radar:KLD7, camera:Picam):
-    def init(self, radar:KLD7, camera):
+    def init(self, radar:KLD7, camera:Picam):
         self.radar = radar
+        print(f'''controller.camera[{camera}]''')
         self.camera = camera
     
     def getInitTime(self):
@@ -96,6 +99,9 @@ class Controller:
                                     "magnitude": magnitude})
 
                     print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+                    if (self.camera != None and speed > self.speed_threshhold):
+                         self.camera.takeStill()
+
                 else:
                     if (counter > 200):
                         sys.stdout.write('*')

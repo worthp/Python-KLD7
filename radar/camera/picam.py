@@ -13,7 +13,9 @@ class Picam:
 
     def takeStill(self):
         now = time.time()*1000
-        self.camera.capture_file(f'''{now}.jpg''')
+        filename = f'''{now}.jpg'''
+        print(f'''Click! [{filename}]''')
+        self.camera.capture_file(filename)
 
 def go():
     camera = Picam()
