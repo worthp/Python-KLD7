@@ -1,6 +1,8 @@
+import logging
 import time
 from picamera2 import Picamera2
 
+logger = logging.getLogger(__name__)
 
 class Picam:
     def __init__ (self):
@@ -13,8 +15,8 @@ class Picam:
 
     def takeStill(self):
         now = time.time()*1000
-        filename = f'''{now}.jpg'''
-        print(f'''Click! [{filename}]''')
+        filename = f'''images/{now}.jpg'''
+        logger.info(f'''Click! [{filename}]''')
         self.camera.capture_file(filename)
 
 def go():

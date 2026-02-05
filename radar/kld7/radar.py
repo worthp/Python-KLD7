@@ -1,9 +1,12 @@
 import sys
+import logging
 import math
 from struct import unpack
 import serial
 import time 
 import threading
+
+logger = logging.getLogger(__name__)
 
 class KLD7:
     class RESPONSE():
@@ -159,12 +162,15 @@ class KLD7:
 
     def init(self, device):
         if (self._inited == True):
+            logger.info(f'''kld7 is already inited.''')
             return self.RESPONSE.OK
 
+        logger.info(f'''kld7 is initializing.''')
         self._init_time = int(time.time()*1000)
         self._device = device
 
         # create serial object with corresponding COM Port and open it 
+        logger.info(f'''creating serialPort''')
         self.serialPort =serial.Serial(self._device)
         self.serialPort.baudrate=115200
         self.serialPort.parity=serial.PARITY_EVEN
@@ -179,9 +185,10 @@ class KLD7:
         self.serialPort.write(cmd_init)
 
         # get response
+        logger.info(f'''waiting for kld7 init response''')
         response = self.serialPort.read(9)
         if response[8] != 0:
-            print('Error during initialisation for K-LD7')
+            logger.info('Error during initialisation for K-LD7')
             return response[8]
 
         # change to higher baudrate based on the '3' value in the INIT payload
@@ -205,7 +212,7 @@ class KLD7:
             # get response
             response = self.serialPort.read(9)
             if response[8] != 0:
-                print(f'[GRPS] error[{response[8]}]')
+                logger.info(f'[GRPS] error[{response[8]}]')
                 return response[8]
             
             header, payloadLength = unpack('<4sI', self.serialPort.read(8))
@@ -271,7 +278,7 @@ class KLD7:
         with self.threadLock:
             r = self.sendCommand("GNFD", 8) # 8 is for TDAT
             if (r != 0):
-                print(f'GNFD failed[{r}]')
+                logger.info(f'GNFD failed[{r}]')
                 return None, None, None, None
 
             # look for header and payload
@@ -325,23 +332,23 @@ class KLD7:
                 cmd_frame = header+payloadlength
 
             if (cmd != "GNFD"):
-                print(f"cmd_frame[{cmd_frame}]")
+                logger.info(f"cmd_frame[{cmd_frame}]")
 
             self.serialPort.write(cmd_frame)
 
             # get response
             response = self.serialPort.read(9)
             if response[8] != 0:
-                print(f'[{cmd}] error[{response[8]}]')
+                logger.info(f'[{cmd}] error[{response[8]}]')
 
         return response[8]
     
     def disconnect(self):
         if (self._inited == False):
             return
-        print(f'''KLD7 shutting down ...''')
+        logger.info(f'''KLD7 shutting down ...''')
         with self.threadLock:
-            print(f'''sending BYE to sensor''')
+            logger.info(f'''sending BYE to sensor''')
             # disconnect from sensor 
             payloadlength = (0).to_bytes(4, byteorder='little')
             header = bytes("GBYE", 'utf-8')
@@ -351,11 +358,11 @@ class KLD7:
             # get response
             response = self.serialPort.read(9)
             if response[8] == 0:
-                print('KLD7 acknowledged BYE')
+                logger.info('KLD7 acknowledged BYE')
             else:
-                print('Error during disconnecting with K-LD7')
+                logger.info('Error during disconnecting with K-LD7')
                 
-            print(f'''closing [{self._device}]''')
+            logger.info(f'''closing [{self._device}]''')
             self.serialPort.close()
             self._inited = False
         return response[8]

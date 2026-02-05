@@ -1,17 +1,20 @@
 import sys
-import http.server as http
-from os.path import isfile
 import os
-from controller.controller import Controller
+import logging
 import threading
 import time
 
-from collections import deque
+import http.server as http
+from os.path import isfile, isdir
+
+from controller.controller import Controller
+
 # Configuration
 server = None
 HOST_NAME = ""
 SERVER_PORT = 8080
 
+logger = logging.getLogger(__name__)
 
 class HttpInterface:
     def __init__(self):
@@ -162,12 +165,12 @@ class HttpInterface:
         
     def hostRebootPage(self, path):
         
-        print("shutting down")
+        logger.info("shutting down")
         command = "/usr/bin/sudo /usr/sbin/reboot"
         import subprocess
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         output = process.communicate()[0]
-        print(output)
+        logger.info(output)
 
         return self.hostControlPage(path)
 
@@ -208,7 +211,7 @@ class HttpInterface:
         while (not self.isStopped):
             self.server.handle_request()
 
-        print(f'''web interface was stopped''')
+        logger.info(f'''web interface was stopped''')
 
 
 class HttpRequestHandler(http.SimpleHTTPRequestHandler):
@@ -226,7 +229,9 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     def do_GET(self):
         # let super class to serve the file since that's what it does
         path = self.translate_path(self.path)
-        if (os.path.isfile(path)):
+        logger.info(f'''path [{path}]''')
+
+        if (os.path.isfile(path) or (path.endswith('/images/') and os.path.isdir(path))):
             super().do_GET()
             return
         

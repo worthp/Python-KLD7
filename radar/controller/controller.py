@@ -1,8 +1,12 @@
 import sys
 import time
 import threading
+import logging
+
 from kld7.radar import KLD7
 from camera.picam import Picam
+
+logger = logging.getLogger(__name__)
 
 class Controller:
     def __init__ (self):
@@ -33,7 +37,7 @@ class Controller:
     
     def init(self, radar:KLD7, camera:Picam):
         self.radar = radar
-        print(f'''controller.camera[{camera}]''')
+        logger.info(f'''controller.camera[{camera}]''')
         self.camera = camera
     
     def getInitTime(self):
@@ -81,7 +85,7 @@ class Controller:
     def run(self):
 
         if (not self.radar._inited):
-            print("radar is not inited")
+            logger.info("radar is not inited")
             return
         
         try:
@@ -98,22 +102,22 @@ class Controller:
                                     "angle": angle,
                                     "magnitude": magnitude})
 
-                    print(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+                    logger.info(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+                    
                     if (self.camera != None and speed > self.speed_threshhold):
                          self.camera.takeStill()
 
                 else:
                     if (counter > 200):
                         sys.stdout.write('*')
-                        sys.stdout.flush()
                         counter = 0
 
                     counter += 1
                     
                 time.sleep(0.033)
                 
-            print(f'''controller was stopped''')
+            logger.info(f'''controller was stopped''')
         except Exception as e:
-            print(f'''Caught Exception [{e}]''')
+            logger.info(f'''Caught Exception [{e}]''')
             self.radar.disconnect()
             return
