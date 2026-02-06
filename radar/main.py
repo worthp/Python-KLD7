@@ -1,12 +1,17 @@
 import sys
+import os
 import signal
 import threading
 import argparse
 import logging
 import time
 
+isRaspberryPi = False
+if (os.path.isfile("/boot/firmware/config.txt")):
+    isRaspberryPi = True
+    from camera.picam import Picam
+
 from kld7.radar import KLD7
-from camera.picam import Picam
 from controller.controller import Controller
 from web.web import HttpInterface
 
@@ -46,7 +51,8 @@ def main():
             logger.info(f"radar failed to init[{r}] with device[{args.device}]")
             exit
 
-        camera = Picam()
+        if (isRaspberryPi):
+            camera = Picam()
 
         controller.init(radar, camera)
         wif.init(controller)

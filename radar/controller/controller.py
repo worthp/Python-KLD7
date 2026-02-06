@@ -1,10 +1,14 @@
 import sys
+import os
 import time
 import threading
 import logging
-
 from kld7.radar import KLD7
-from camera.picam import Picam
+
+isRaspberryPi = False
+if (os.path.isfile("/boot/firmware/config.txt")):
+    isRaspberryPi = True
+    from camera.picam import Picam
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +113,7 @@ class Controller:
 
                 else:
                     if (counter > 200):
-                        sys.stdout.write('*')
+                        logger.info('*')
                         counter = 0
 
                     counter += 1
