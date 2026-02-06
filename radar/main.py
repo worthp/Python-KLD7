@@ -1,6 +1,7 @@
 import sys
 import os
 import signal
+import traceback
 import threading
 import argparse
 import logging
@@ -68,9 +69,11 @@ def main():
         rthread.join()
         wthread.join()
     except Exception as e:
-         logger.info(f'''caught some exception {e}''')
+        traceback.print_exc()
+        logger.info(f'''caught some exception {e}''')
     finally:
         radar.disconnect()
+        
 
 if __name__ == "__main__":
     main()

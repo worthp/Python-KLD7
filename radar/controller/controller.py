@@ -1,7 +1,9 @@
 import sys
+import math
 import os
 import time
 import threading
+import traceback
 import logging
 from kld7.radar import KLD7
 
@@ -25,6 +27,27 @@ class Controller:
         self._lastTDATReadingIndex = -1
         
         self._lastTrackedReadingTime = 0
+
+        self.stats = {}
+        self.read_count = "read_count"
+        self.min_speed = "min_speed"
+        self.max_speed = "max_speed"
+        self.min_angle = "min_angle"
+        self.max_angle = "max_angle"
+        self.min_distance = "min_distance"
+        self.max_distance = "max_distance"
+        self.min_magnitude = "min_magnitude"
+        self.max_magnitude = "max_magnitude"
+
+        self.stats[self.read_count] = 0
+        self.stats[self.min_speed] = 0
+        self.stats[self.max_speed] = 0
+        self.stats[self.min_angle] = 0
+        self.stats[self.max_angle] = 0
+        self.stats[self.min_distance] = 0
+        self.stats[self.max_distance] = 0
+        self.stats[self.min_magnitude] = 0
+        self.stats[self.max_magnitude] = 0
 
         self.threadLock = threading.RLock()
 
@@ -86,6 +109,9 @@ class Controller:
     def setParameter(self, name, value):
         return self.radar.setParameter(name, value)
     
+    def getStats(self):
+        return self.stats
+    
     def run(self):
 
         if (not self.radar._inited):
@@ -99,6 +125,7 @@ class Controller:
                 if (speed != None):
                     counter = 0
 
+                    self._lastTrackedReadingTime = time.time() * 1000
                     # remember the last one
                     self.addTDATReading({"millis": self._lastTrackedReadingTime,
                                     "distance": distance,
@@ -107,6 +134,16 @@ class Controller:
                                     "magnitude": magnitude})
 
                     logger.info(f's[{speed}] d[{distance}] a[{angle}] m[{magnitude}]')
+
+                    self.stats[self.read_count] += 1
+                    self.stats[self.min_speed] = min(speed, self.stats[self.min_speed])
+                    self.stats[self.min_distance] = min(distance, self.stats[self.min_distance])
+                    self.stats[self.min_angle] = min(angle, self.stats[self.min_angle])
+                    self.stats[self.min_magnitude] = min(magnitude, self.stats[self.min_magnitude])
+                    self.stats[self.max_speed] = max(speed, self.stats[self.max_speed])
+                    self.stats[self.max_distance] = max(distance, self.stats[self.max_distance])
+                    self.stats[self.max_angle] = max(angle, self.stats[self.max_angle])
+                    self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
                     
                     if (self.camera != None and speed > self.speed_threshhold):
                          self.camera.takeStill()
@@ -122,6 +159,6 @@ class Controller:
                 
             logger.info(f'''controller was stopped''')
         except Exception as e:
-            logger.info(f'''Caught Exception [{e}]''')
+            traceback.print_exc()
             self.radar.disconnect()
             return

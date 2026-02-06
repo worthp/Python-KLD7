@@ -99,9 +99,13 @@ class HttpInterface:
         
         # get timing of last tracked reading
         duration = int((time.time() * 1000) - self.controller._lastTrackedReadingTime)
+
+        lastTrackedHours = int(duration/3600000)
         duration %= 3600000
+
         lastTrackedMinutes = int(duration/60000) 
         duration %= 60000
+
         lastTrackedSeconds = int(duration/1000)
 
         # get timing of radar up time
@@ -116,13 +120,22 @@ class HttpInterface:
         upSeconds = int(duration/1000)
 
         s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
-        s += f'''<p>Last Tracked Reading {lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
-        s += '<table class="radar"><thead><tr><th>Time</th><th>Distance</th><th>Speed</th><th>Angle</th><th>Magnitude</th>'
+        s += f'''<p>Last Tracked Reading Duration {lastTrackedHours:0>2}:{lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
+        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Distance (cm)</th><th>Speed(km/h)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
         
         if (len(tdatReadings) > 0):
             for reading in tdatReadings:
+                readTime = reading['millis']
+
+                duration = (time.time()*1000) - readTime
+                hours = int(duration/3600000)
+                duration %= 3600000
+                minutes = int(duration/60000) 
+                duration %= 60000
+                seconds = int(duration/1000)
+
                 s += f"""<tr>
-                <td>{reading['millis']:0>7}</td>
+                <td>{hours:0>2}:{minutes:0>2}:{seconds:0>2}</td>
                 <td>{reading['distance']:0>4}</td>
                 <td>{reading['speed']:0>2.2f}</td>
                 <td>{reading['angle']:0>2.4f}</td>
@@ -131,6 +144,20 @@ class HttpInterface:
                 """
         else:
             s += f"""<tr><td colspan='5'>No Readings Available</td></tr>"""
+
+        s += '</thead></table>'
+
+        stats = self.controller.getStats()
+
+        s += '<table class="radar"><thead>'
+        
+        s += f"""
+        <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
+        <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
+        <tr><th>Min/Max Speed (km/h)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
+        <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
+        <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
+        """
 
         s += '</thead></table>'
         return s
@@ -159,9 +186,20 @@ class HttpInterface:
         """
         
     def statsPage(self, path):
-        return f"""
-        <h2>Stats</h2>
+        stats = self.controller.getStats()
+
+        s = '<table class="radar"><thead>'
+        
+        s += f"""
+        <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
+        <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
+        <tr><th>Min/Max Speed (km/h)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
+        <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
+        <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
         """
+
+        s += '</thead></table>'
+        return s
         
     def hostRebootPage(self, path):
         
@@ -229,7 +267,6 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     def do_GET(self):
         # let super class to serve the file since that's what it does
         path = self.translate_path(self.path)
-        logger.info(f'''path [{path}]''')
 
         if (os.path.isfile(path) or (path.endswith('/images/') and os.path.isdir(path))):
             super().do_GET()

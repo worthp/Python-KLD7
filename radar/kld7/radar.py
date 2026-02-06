@@ -1,10 +1,10 @@
 import sys
-import logging
 import math
 from struct import unpack
 import serial
 import time 
 import threading
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -162,15 +162,12 @@ class KLD7:
 
     def init(self, device):
         if (self._inited == True):
-            logger.info(f'''kld7 is already inited.''')
             return self.RESPONSE.OK
 
-        logger.info(f'''kld7 is initializing.''')
         self._init_time = int(time.time()*1000)
         self._device = device
 
         # create serial object with corresponding COM Port and open it 
-        logger.info(f'''creating serialPort''')
         self.serialPort =serial.Serial(self._device)
         self.serialPort.baudrate=115200
         self.serialPort.parity=serial.PARITY_EVEN
@@ -185,10 +182,9 @@ class KLD7:
         self.serialPort.write(cmd_init)
 
         # get response
-        logger.info(f'''waiting for kld7 init response''')
         response = self.serialPort.read(9)
         if response[8] != 0:
-            logger.info('Error during initialisation for K-LD7')
+            logger.error('Error during initialisation for K-LD7')
             return response[8]
 
         # change to higher baudrate based on the '3' value in the INIT payload
@@ -212,7 +208,7 @@ class KLD7:
             # get response
             response = self.serialPort.read(9)
             if response[8] != 0:
-                logger.info(f'[GRPS] error[{response[8]}]')
+                logger.error(f'[GRPS] error[{response[8]}]')
                 return response[8]
             
             header, payloadLength = unpack('<4sI', self.serialPort.read(8))
@@ -278,7 +274,7 @@ class KLD7:
         with self.threadLock:
             r = self.sendCommand("GNFD", 8) # 8 is for TDAT
             if (r != 0):
-                logger.info(f'GNFD failed[{r}]')
+                logger.error(f'GNFD failed[{r}]')
                 return None, None, None, None
 
             # look for header and payload
@@ -289,14 +285,14 @@ class KLD7:
                 speed = speed / 100
                 angle = math.radians(angle)/100
                 
-                self._lastTrackedReadingTime = int(time.time() * 1000) # make secs millis
-
                 return distance, speed, angle, magnitude
             
         return None, None, None, None
 
     
     def setParameter(self, name, value):
+        if (not self._inited):
+            return 1
 
         if (name not in self._radarParameters):
             return 1
@@ -332,14 +328,14 @@ class KLD7:
                 cmd_frame = header+payloadlength
 
             if (cmd != "GNFD"):
-                logger.info(f"cmd_frame[{cmd_frame}]")
+                logger.debug(f"cmd_frame[{cmd_frame}]")
 
             self.serialPort.write(cmd_frame)
 
             # get response
             response = self.serialPort.read(9)
             if response[8] != 0:
-                logger.info(f'[{cmd}] error[{response[8]}]')
+                logger.error(f'[{cmd}] error[{response[8]}]')
 
         return response[8]
     
@@ -360,7 +356,7 @@ class KLD7:
             if response[8] == 0:
                 logger.info('KLD7 acknowledged BYE')
             else:
-                logger.info('Error during disconnecting with K-LD7')
+                logger.error('Error during disconnecting with K-LD7')
                 
             logger.info(f'''closing [{self._device}]''')
             self.serialPort.close()
@@ -369,6 +365,3 @@ class KLD7:
         
     def getRadarParameters(self):
         return self._radarParameters
-    
-    def getLastTrackedReadingTime(self):
-        return self._lastTrackedReadingTime
