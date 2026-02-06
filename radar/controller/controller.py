@@ -39,7 +39,7 @@ class Controller:
     def stop(self):
         self.isStopped = True
     
-    def init(self, radar:KLD7, camera:Picam):
+    def init(self, radar:KLD7, camera = None):
         self.radar = radar
         logger.info(f'''controller.camera[{camera}]''')
         self.camera = camera

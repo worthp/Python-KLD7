@@ -53,8 +53,10 @@ def main():
 
         if (isRaspberryPi):
             camera = Picam()
+            controller.init(radar, camera)
+        else:
+            controller.init(radar)
 
-        controller.init(radar, camera)
         wif.init(controller)
 
         rthread = threading.Thread(target=controller.run, name="Radar Controller", kwargs={})
