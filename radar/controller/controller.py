@@ -19,7 +19,7 @@ class Controller:
     def __init__ (self):
         self.isStopped = False
         self.radar:KLD7 = None
-        self.speed_threshhold = 5.0
+        self.speed_threshhold = 10.0
 
         self.camera = None
 
@@ -162,7 +162,7 @@ class Controller:
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
                     
                     if (self.camera != None and speed > self.speed_threshhold):
-                         self.camera.takeStill()
+                         self.camera.takeStill(int(speed * 0.6212712)) # kph->mph
 
                 else:
                     if (counter > 200):
