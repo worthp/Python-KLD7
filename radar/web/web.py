@@ -24,6 +24,7 @@ class HttpInterface:
         # order matters here. keep / at the end; longer matches at the top
         self.routes['/hostcontrol/reboot'] = self.hostRebootPage
         self.routes['/hostcontrol'] = self.hostControlPage
+        self.routes['/radarcontrol/resetradar'] = self.radarReset
         self.routes['/radarcontrol'] = self.radarControlPage
         self.routes['/readings'] = self.readingsPage
         self.routes['/stats'] = self.statsPage
@@ -89,6 +90,7 @@ class HttpInterface:
             s += "</tr>"
 
         s += "</table>"
+        s += "<p><a href='/radarcontrol/resetradar'>Reset Radar</a></<p>"
 
         return s
         
@@ -211,6 +213,12 @@ class HttpInterface:
         logger.info(output)
 
         return self.hostControlPage(path)
+
+    def radarReset(self, path):
+        logger.debug('here')
+
+        self.controller.resetRadarPower()
+        return self.radarControlPage(path)
 
     def handleGetRequest(self, path):
 

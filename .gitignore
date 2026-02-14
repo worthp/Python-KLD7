@@ -1,3 +1,9 @@
+#My shit
+
+*.jpg
+images/
+sandbox
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

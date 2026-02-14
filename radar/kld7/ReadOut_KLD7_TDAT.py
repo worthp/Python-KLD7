@@ -20,9 +20,12 @@ import numpy as np
 import math
 
 COM_Port = '/dev/ttyUSB0'
+COM_Port = '/dev/ttyAMA0'
 
 # create serial object with corresponding COM Port and open it 
+print('opening')
 com_obj=serial.Serial(COM_Port)
+print('opened')
 com_obj.baudrate=115200
 com_obj.parity=serial.PARITY_EVEN
 com_obj.stopbits=serial.STOPBITS_ONE
@@ -33,12 +36,16 @@ payloadlength = (4).to_bytes(4, byteorder='little')
 value = (3).to_bytes(4, byteorder='little')
 header = bytes("INIT", 'utf-8')
 cmd_init = header+payloadlength+value
+print('writing')
 com_obj.write(cmd_init)
+print('wrote')
 
 # get response
+print('reading')
 response_init = com_obj.read(9)
+print('read')
 if response_init[8] != 0:
-    print('Error during initialisation for K-LD7')
+    print(f'''Error during initialisation for K-LD7 [{response_init[0]}]''')
 
 # delay 75ms
 time.sleep(0.075)
@@ -69,7 +76,10 @@ if response_init[8] != 0:
     print('Error: Command not acknowledged')
 
 # readout and plot TDAT data continuously
-for ctr in range(100):
+TDAT_Distance = 0
+TDAT_Speed = 0
+
+for ctr in range(10):
 
     # request next frame data
     TDAT = (8).to_bytes(4, byteorder='little')
@@ -97,9 +107,7 @@ for ctr in range(100):
         distance_x = -(TDAT_Distance * math.sin(TDAT_Angle))
         distance_y = TDAT_Distance * math.cos(TDAT_Angle)
     
-    if target_detected:
-        # set new coordinates
-       print(f'''speed[{TDAT_Speed}] distance[{TDAT_Distance}]''')
+    print(f'''speed[{TDAT_Speed}] distance[{TDAT_Distance}]''')
         
 
 # disconnect from sensor 

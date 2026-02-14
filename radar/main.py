@@ -37,22 +37,25 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", help="serial port", required=True)
+    parser.add_argument("-w", "--web_interface", help="web interface control", action='store_false')
+    parser.add_argument("-r", "--radar_interface", help="radar controller control", action='store_false')
     args = parser.parse_args()
 
     try:
         logger.info(f'''creating KLD7''')
         radar = KLD7()
 
-        logger.info(f'''initializing KLD7 with [{args.device}]''')
-        r = radar.init(args.device)
+        if (args.radar_interface):
+            logger.info(f'''initializing KLD7 with [{args.device}]''')
+            r = radar.init(args.device)
 
-        if (r == KLD7.RESPONSE.OK):
-            logger.info(f"radar inited[{radar._inited}] with device[{args.device}]")
-        else:
-            logger.info(f"radar failed to init[{r}] with device[{args.device}]")
-            exit
+            if (r == KLD7.RESPONSE.OK):
+                logger.info(f"radar inited[{radar._inited}] with device[{args.device}]")
+            else:
+                logger.info(f"radar failed to init[{r}] with device[{args.device}]")
+                exit
 
-        if (isRaspberryPi):
+        if (isRaspberryPi and args.radar_interface):
             camera = Picam()
             controller.init(radar, camera)
         else:
@@ -63,11 +66,16 @@ def main():
         rthread = threading.Thread(target=controller.run, name="Radar Controller", kwargs={})
         wthread = threading.Thread(target=wif.go, name="Web Interface", kwargs={})
 
-        rthread.start()
-        wthread.start()
+        threads = []
+        if (args.radar_interface):
+            threads.append(rthread)
+            rthread.start()
+        if (args.web_interface):
+            threads.append(wthread)
+            wthread.start()
 
-        rthread.join()
-        wthread.join()
+        for t in threads:
+            t.join()
     except Exception as e:
         traceback.print_exc()
         logger.info(f'''caught some exception {e}''')

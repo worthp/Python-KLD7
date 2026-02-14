@@ -5,6 +5,7 @@ import time
 import threading
 import traceback
 import logging
+import RPi.GPIO as GPIO
 from kld7.radar import KLD7
 
 isRaspberryPi = False
@@ -111,6 +112,21 @@ class Controller:
     
     def getStats(self):
         return self.stats
+
+    def resetRadarPower(self):
+
+        radarResetPin = 20
+        try :
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(radarResetPin, GPIO.OUT)
+
+            GPIO.output(radarResetPin, GPIO.HIGH)
+            time.sleep(0.5)
+            GPIO.output(radarResetPin, GPIO.LOW)
+        finally:
+            GPIO.cleanup()
+
+        return
     
     def run(self):
 
