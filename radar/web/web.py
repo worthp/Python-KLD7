@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 import logging
 import threading
 import time
@@ -24,9 +25,11 @@ class HttpInterface:
         # order matters here. keep / at the end; longer matches at the top
         self.routes['/hostcontrol/reboot'] = self.hostRebootPage
         self.routes['/hostcontrol'] = self.hostControlPage
-        self.routes['/radarcontrol/resetradar'] = self.radarReset
+        #self.routes['/radarcontrol/resetradar'] = self.radarReset
+        self.routes['/radarcontrol/setspeedthreshold'] = self.setSpeedThreshold
         self.routes['/radarcontrol'] = self.radarControlPage
         self.routes['/readings'] = self.readingsPage
+        self.routes['/images'] = self.imagesPage
         self.routes['/stats'] = self.statsPage
         self.routes['/update'] = self.updateRadarParam
         self.routes['/'] = self.homePage
@@ -56,6 +59,20 @@ class HttpInterface:
         return """
         <h2>Home Page</h2>
         """
+    def imagesPage(self, path, translatedPath):
+        s = ""
+        # (total=501809635328, used=86659817472, free=389584015360)
+        (total, used, free) = shutil.disk_usage('.')
+        s += f'''<p>Disk Usage: free: <b>{int(free/total*100)}%</b> used: <b>{int(used/1073741824)}G</b></p>'''
+
+        with os.scandir(translatedPath) as d:
+            s += "<table class='radar'>"
+            for f in d:
+                s += f"""<tr><td><a href='{path}/{f.name}'>{f.name}</a></td></tr>"""
+
+            s += "</table>"
+            return s
+
         
     def radarControlPage(self, path, updated=None):
         params = self.controller.getRadarParameters()
@@ -83,14 +100,25 @@ class HttpInterface:
             if (p['values'] != None):
                 s += "<td>"
                 for n,v in p['values'].items():
-                    s += (f"<a href='/update/{name}/{v}'>{n}</a>&nbsp;")
+                    s += f"<a href='/update/{name}/{v}'>{n}</a>&nbsp;"
                 s += "</td>"
             else:
                 s += "<td>Not Settable</td>"
             s += "</tr>"
 
+        currentThreshold = self.controller.speed_threshold
+
+        s += "<tr>"
+        s += f'''<td>speed threshold</td><td>{currentThreshold}</td>'''
+        s += '<td>'
+        for p in ["10","15","20","25","30"]:
+            s += f'''<a href='/radarcontrol/setspeedthreshold/{p}'>{p}</a>&nbsp;'''
+        s += '</td>'
+
+        s+= "</tr>"
+
         s += "</table>"
-        s += "<p><a href='/radarcontrol/resetradar'>Reset Radar</a></<p>"
+        # s += "<p><a href='/radarcontrol/resetradar'>Reset Radar</a></<p>"
 
         return s
         
@@ -123,7 +151,7 @@ class HttpInterface:
 
         s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
         s += f'''<p>Last Tracked Reading Duration {lastTrackedHours:0>2}:{lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
-        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Distance (cm)</th><th>Speed(km/h)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
+        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Distance (cm)</th><th>Speed(mph)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
         
         if (len(tdatReadings) > 0):
             for reading in tdatReadings:
@@ -156,7 +184,7 @@ class HttpInterface:
         s += f"""
         <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
         <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
-        <tr><th>Min/Max Speed (km/h)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
+        <tr><th>Min/Max Speed (mph)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
         <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
         <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
         """
@@ -195,7 +223,7 @@ class HttpInterface:
         s += f"""
         <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
         <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
-        <tr><th>Min/Max Speed (km/h)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
+        <tr><th>Min/Max Speed (mph)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
         <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
         <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
         """
@@ -215,9 +243,15 @@ class HttpInterface:
         return self.hostControlPage(path)
 
     def radarReset(self, path):
-        logger.debug('here')
-
         self.controller.resetRadarPower()
+        return self.radarControlPage(path)
+
+
+    def setSpeedThreshold(self, path):
+
+        parts = list(filter(lambda x: x!='', path.split('/')))
+        self.controller.setSpeedThreshold(parts[2])
+
         return self.radarControlPage(path)
 
     def handleGetRequest(self, path):
@@ -244,6 +278,7 @@ class HttpInterface:
         <a href="/stats">Stats</a>
         <a href="/radarcontrol">Radar Control</a>
         <a href="/hostcontrol">Host Control</a>
+        <a href="/images">Images</a>
     </div>
     """
 
@@ -274,9 +309,9 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         # let super class to serve the file since that's what it does
-        path = self.translate_path(self.path)
+        translated_path = self.translate_path(self.path)
 
-        if (os.path.isfile(path) or (path.endswith('/images/') and os.path.isdir(path))):
+        if (os.path.isfile(translated_path) or self.path.endswith('images/')):
             super().do_GET()
             return
         
@@ -292,7 +327,11 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.wfile.write(bytes("<body>", "utf-8"))
 
         self.wfile.write(bytes(self.http_interface.pageHeader(self.path), "utf-8"))
-        self.wfile.write(bytes(self.http_interface.handleGetRequest(self.path), "utf-8"))
+        if (self.path.endswith('/images')):
+            section = self.http_interface.imagesPage(self.path, translated_path)
+            self.wfile.write(bytes(section, "utf-8"))
+        else:
+            self.wfile.write(bytes(self.http_interface.handleGetRequest(self.path), "utf-8"))
 
         self.wfile.write(bytes("</body>", "utf-8"))
         self.wfile.write(bytes("</html>", "utf-8"))

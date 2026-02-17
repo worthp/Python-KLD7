@@ -5,13 +5,13 @@ import time
 import threading
 import traceback
 import logging
-import RPi.GPIO as GPIO
 from kld7.radar import KLD7
 
 isRaspberryPi = False
 if (os.path.isfile("/boot/firmware/config.txt")):
     isRaspberryPi = True
     from camera.picam import Picam
+    import RPi.GPIO as GPIO
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class Controller:
     def __init__ (self):
         self.isStopped = False
         self.radar:KLD7 = None
-        self.speed_threshhold = 18.0
+        self.speed_threshold = 15.0
 
         self.camera = None
 
@@ -40,14 +40,15 @@ class Controller:
         self.min_magnitude = "min_magnitude"
         self.max_magnitude = "max_magnitude"
 
+        # set mins to a big value so they get reset
         self.stats[self.read_count] = 0
-        self.stats[self.min_speed] = 0
+        self.stats[self.min_speed] = 10000
         self.stats[self.max_speed] = 0
-        self.stats[self.min_angle] = 0
+        self.stats[self.min_angle] = 10000
         self.stats[self.max_angle] = 0
-        self.stats[self.min_distance] = 0
+        self.stats[self.min_distance] = 10000
         self.stats[self.max_distance] = 0
-        self.stats[self.min_magnitude] = 0
+        self.stats[self.min_magnitude] = 10000
         self.stats[self.max_magnitude] = 0
 
         self.threadLock = threading.RLock()
@@ -65,7 +66,6 @@ class Controller:
     
     def init(self, radar:KLD7, camera = None):
         self.radar = radar
-        logger.info(f'''controller.camera[{camera}]''')
         self.camera = camera
     
     def getInitTime(self):
@@ -109,11 +109,17 @@ class Controller:
 
     def setParameter(self, name, value):
         return self.radar.setParameter(name, value)
+
+    def setSpeedThreshold(self, threshold):
+        self.speed_threshold = threshold
     
     def getStats(self):
         return self.stats
 
     def resetRadarPower(self):
+
+        if not isRapberryPi:
+            return
 
         radarResetPin = 20
         try :
@@ -140,9 +146,10 @@ class Controller:
                 distance, speed, angle, magnitude = self.radar.getTDAT()
                 if (speed != None):
                     counter = 0
+                    speed = int(abs(speed * 0.6212712)) # kph->mph
 
                     self._lastTrackedReadingTime = time.time() * 1000
-                    # remember the last one
+
                     self.addTDATReading({"millis": self._lastTrackedReadingTime,
                                     "distance": distance,
                                     "speed": speed,
@@ -161,8 +168,8 @@ class Controller:
                     self.stats[self.max_angle] = max(angle, self.stats[self.max_angle])
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
                     
-                    if (self.camera != None and abs(speed) > self.speed_threshhold):
-                         self.camera.takeStill(int(abs(speed * 0.6212712)), distance) # kph->mph
+                    if (self.camera != None and speed > self.speed_threshold):
+                         self.camera.takeStill(speed, distance)
 
                 else:
                     if (counter > 200):
@@ -171,7 +178,7 @@ class Controller:
 
                     counter += 1
                     
-                time.sleep(0.033)
+                time.sleep(0.033) # mostly arbitrary
                 
             logger.info(f'''controller was stopped''')
         except Exception as e:

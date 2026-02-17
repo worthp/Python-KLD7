@@ -40,11 +40,12 @@ class Picam:
     def takeStill(self, speed, distance):
 
         while True:
-            now = int(time.time()*1000)
-            filename = f'''images/{now}-{speed}.jpg'''
+            now = datetime.now()
+            filename = f'''images/{now.year}{now.month}{now.day}{now.minute}{now.second}{now.microsecond}-{speed}.jpg'''
 
-            text = datetime.now().isoformat(timespec='seconds')
+            text = now.isoformat(timespec='seconds')
             image_size = self.camera.camera_configuration()["main"]["size"]
+            # left bottom corner
             position = (0, image_size[1] - 20)
             font_scale = 1
             font = cv2.FONT_HERSHEY_COMPLEX
