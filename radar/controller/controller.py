@@ -54,7 +54,7 @@ class Controller:
         self.stats[self.min_magnitude] = 10000
         self.stats[self.max_magnitude] = 0
 
-        self.speed_buckets = [5,10,15,20, 25,30,35,40,45,50]
+        self.speed_buckets = [5,10,15,20,25,30,35,40,45,50]
 
         h = []
         for i in range(0, 24):
@@ -70,7 +70,7 @@ class Controller:
 
         return
 
-    def dropInBucket(self, buckets, v):
+    def dropInBucket(self, buckets, counts, v):
         for b in buckets[::-1]:
             if v > b:
                 buckets[str(b)] += 1
@@ -154,6 +154,9 @@ class Controller:
             GPIO.cleanup()
 
         return
+
+    def takeStill(self):
+        self.camera.takeStill("0", "0")
     
     def run(self):
 
@@ -190,8 +193,8 @@ class Controller:
                     self.stats[self.max_angle] = max(angle, self.stats[self.max_angle])
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
 
-                    self.stats[self.hourly_counts[now.hour]] += 1
-                    self.dropInBucket(self.stats[self.speed_counts], speed)
+                    self.stats[self.hourly_counts][now.hour] += 1
+                    self.dropInBucket(self.speed_buckets,self.stats[self.speed_counts], speed)
                     
                     if (self.camera != None and speed > self.speed_threshold):
                          self.camera.takeStill(speed, distance)

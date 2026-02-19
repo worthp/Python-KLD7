@@ -12,7 +12,7 @@ class Picam:
 
         self.camera = Picamera2()
 
-        #pprint(self.camera.sensor_modes)
+        pprint(self.camera.sensor_modes)
         '''
         arducam configs
         modes[0]:'size': (640, 480),

@@ -29,6 +29,7 @@ class HttpInterface:
         self.routes['/radarcontrol/setspeedthreshold'] = self.setSpeedThreshold
         self.routes['/radarcontrol'] = self.radarControlPage
         self.routes['/readings'] = self.readingsPage
+        self.routes['/images/takestill'] = self.takeStill
         self.routes['/images'] = self.imagesPage
         self.routes['/stats'] = self.statsPage
         self.routes['/update'] = self.updateRadarParam
@@ -59,18 +60,24 @@ class HttpInterface:
         return """
         <h2>Home Page</h2>
         """
+
     def imagesPage(self, path, translatedPath):
         s = ""
         (total, used, free) = shutil.disk_usage('.')
         s += f'''<p>Disk Usage: free: <b>{int(free/total*100)}%</b> used: <b>{int(used/1073741824)}G</b></p>'''
+        s += "<p><a href='/images/takestill'>Take Still</a></<p>"
 
+        files = []
         with os.scandir(translatedPath) as d:
-            s += "<table class='radar'>"
             for f in d:
-                s += f"""<tr><td><a href='{path}/{f.name}'>{f.name}</a></td></tr>"""
+                files.append(f.name)
 
-            s += "</table>"
-            return s
+        s += "<table class='radar'>"
+        files.sort(reverse=True)
+        for fileName in files:
+                s += f"""<tr><td><a href='{path}/{fileName}'>{fileName}</a></td></tr>"""
+        s += "</table>"
+        return s
 
         
     def radarControlPage(self, path, updated=None):
@@ -120,6 +127,10 @@ class HttpInterface:
         # s += "<p><a href='/radarcontrol/resetradar'>Reset Radar</a></<p>"
 
         return s
+
+    def takeStill(self, path):
+        self.controller.takeStill()
+        return self.imagesPage('/images', './images')
         
     def readingsPage(self, path):
         tdatReadings = []
@@ -196,7 +207,7 @@ class HttpInterface:
         s += '</thead></table>'
 
 
-        s = '<table class="radar">'
+        s += '<br/><table class="radar">'
         s += "<thead><tr><th colspan='13'>Trackings by Hour</th></tr></thead>"
 
         counts = stats[self.controller.hourly_counts]
@@ -341,7 +352,7 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         # let super class to serve the file since that's what it does
         translated_path = self.translate_path(self.path)
 
-        if (os.path.isfile(translated_path) or self.path.endswith('images/')):
+        if (os.path.isfile(translated_path)):
             super().do_GET()
             return
         
