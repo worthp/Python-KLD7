@@ -41,7 +41,7 @@ class Picam:
 
         while True:
             now = datetime.now()
-            filename = f'''images/{now.year}{now.month}{now.day}{now.minute}{now.second}{now.microsecond}-{speed}.jpg'''
+            filename = f'''images/{now.year}{now.month:0>2}{now.day:0>2}{now.hour:0>2}{now.minute:0>2}{now.second:0>2}{now.microsecond}-{speed:0>2}.jpg'''
 
             text = now.isoformat(timespec='seconds')
             image_size = self.camera.camera_configuration()["main"]["size"]

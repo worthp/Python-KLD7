@@ -2,6 +2,7 @@ import sys
 import math
 import os
 import time
+from datetime import datetime
 import threading
 import traceback
 import logging
@@ -39,6 +40,8 @@ class Controller:
         self.max_distance = "max_distance"
         self.min_magnitude = "min_magnitude"
         self.max_magnitude = "max_magnitude"
+        self.speed_counts = "speed_counts"
+        self.hourly_counts = "hourly_counts"
 
         # set mins to a big value so they get reset
         self.stats[self.read_count] = 0
@@ -51,9 +54,27 @@ class Controller:
         self.stats[self.min_magnitude] = 10000
         self.stats[self.max_magnitude] = 0
 
+        self.speed_buckets = [5,10,15,20, 25,30,35,40,45,50]
+
+        h = []
+        for i in range(0, 24):
+            h.append(0)
+        self.stats[self.hourly_counts] = h
+
+        h = {}
+        for b in self.speed_buckets:
+            h[str(b)] = 0
+        self.stats[self.speed_counts] = h
+
         self.threadLock = threading.RLock()
 
         return
+
+    def dropInBucket(self, buckets, v):
+        for b in buckets[::-1]:
+            if v > b:
+                buckets[str(b)] += 1
+                break
     
     def __del__ (self):
         # do what we can to get __del__() called
@@ -118,7 +139,7 @@ class Controller:
 
     def resetRadarPower(self):
 
-        if not isRapberryPi:
+        if not isRaspberryPi:
             return
 
         radarResetPin = 20
@@ -143,6 +164,7 @@ class Controller:
         try:
             counter = 0
             while not self.isStopped:
+                now = datetime.now()
                 distance, speed, angle, magnitude = self.radar.getTDAT()
                 if (speed != None):
                     counter = 0
@@ -167,6 +189,9 @@ class Controller:
                     self.stats[self.max_distance] = max(distance, self.stats[self.max_distance])
                     self.stats[self.max_angle] = max(angle, self.stats[self.max_angle])
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
+
+                    self.stats[self.hourly_counts[now.hour]] += 1
+                    self.dropInBucket(self.stats[self.speed_counts], speed)
                     
                     if (self.camera != None and speed > self.speed_threshold):
                          self.camera.takeStill(speed, distance)

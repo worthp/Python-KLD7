@@ -61,7 +61,6 @@ class HttpInterface:
         """
     def imagesPage(self, path, translatedPath):
         s = ""
-        # (total=501809635328, used=86659817472, free=389584015360)
         (total, used, free) = shutil.disk_usage('.')
         s += f'''<p>Disk Usage: free: <b>{int(free/total*100)}%</b> used: <b>{int(used/1073741824)}G</b></p>'''
 
@@ -111,7 +110,7 @@ class HttpInterface:
         s += "<tr>"
         s += f'''<td>speed threshold</td><td>{currentThreshold}</td>'''
         s += '<td>'
-        for p in ["10","15","20","25","30"]:
+        for p in self.controller.speed_buckets:
             s += f'''<a href='/radarcontrol/setspeedthreshold/{p}'>{p}</a>&nbsp;'''
         s += '</td>'
 
@@ -177,9 +176,14 @@ class HttpInterface:
 
         s += '</thead></table>'
 
+        s += '<br/>' + self.statsPage(path)
+
+        return s
+        
+    def statsPage(self, path):
         stats = self.controller.getStats()
 
-        s += '<table class="radar"><thead>'
+        s = '<table class="radar"><thead>'
         
         s += f"""
         <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
@@ -190,6 +194,48 @@ class HttpInterface:
         """
 
         s += '</thead></table>'
+
+
+        s = '<table class="radar">'
+        s += "<thead><tr><th colspan='13'>Trackings by Hour</th></tr></thead>"
+
+        counts = stats[self.controller.hourly_counts]
+
+        labelRow = "<tr><th>Hour</th>"
+        countRow = "<tr><th>Count</th>"
+
+        for hour in range(0,12):
+            labelRow += f"""<td>{hour:0>2}</td>"""
+            countRow += f"""<td>{counts[hour]}</td>"""
+
+        labelRow += "</tr>"
+        countRow += "</tr>"
+        s += labelRow
+        s += countRow
+
+        labelRow = "<tr><th>Hour</th>"
+        countRow = "<tr><th>Count</th>"
+        for hour in range(12,24):
+            labelRow += f"""<td>{hour:0>2}</td>"""
+            countRow += f"""<td>{counts[hour]}</td>"""
+
+        labelRow += "</tr>"
+        countRow += "</tr>"
+
+
+        s += labelRow + countRow
+        s += '</thead></table>'
+
+        s += '<br/>'
+        s += '<table class="radar">'
+        s += "<thead><tr><th colspan='3'>Trackings by Speed Bucket</th></tr></thead>"
+        s += "<thead><tr><th class='col-width-5'>Speed Bucket</th><th class='col-width-80'>Count</th></tr></thead>"
+        #print(stats[self.controller.speed_counts])
+        for speed, count in stats[self.controller.speed_counts].items():
+            s += f"""<tr><td>{speed}</td><td>{count}</td></tr>"""
+
+        s += '</table>'
+
         return s
         
     def hostControlPage(self, path):
@@ -214,23 +260,7 @@ class HttpInterface:
         <div>Uptime {d:0>2} days {h:0>2}:{m:0>2}:{s:0>2}</div>
         <div><a href='/hostcontrol/reboot'>Reboot</a></div>
         """
-        
-    def statsPage(self, path):
-        stats = self.controller.getStats()
 
-        s = '<table class="radar"><thead>'
-        
-        s += f"""
-        <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
-        <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
-        <tr><th>Min/Max Speed (mph)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
-        <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
-        <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
-        """
-
-        s += '</thead></table>'
-        return s
-        
     def hostRebootPage(self, path):
         
         logger.info("shutting down")
