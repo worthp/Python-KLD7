@@ -37,7 +37,7 @@ class Picam:
         self.camera.stop()
         self.camera.close()
 
-    def takeStill(self, speed, distance):
+    def takeStill(self, speed, distance, magnitude, angle):
 
         while True:
             now = datetime.now()
@@ -51,7 +51,7 @@ class Picam:
             font = cv2.FONT_HERSHEY_COMPLEX
             color = (255, 255, 255)
             thickness = 2
-            status = f'''{text} [{speed}] [{distance}] [{self.camera.camera_configuration()["main"]["size"]}]'''
+            status = f'''{text} [{speed}] [{distance}] [{magnitude}] [{angle}] [{self.camera.camera_configuration()["main"]["size"]}]'''
 
             with self.camera.captured_request() as request:
                 with MappedArray(request, 'main') as m:
