@@ -12,7 +12,7 @@ class Picam:
 
         self.camera = Picamera2()
 
-        pprint(self.camera.sensor_modes)
+        #pprint(self.camera.sensor_modes)
         '''
         arducam configs
         modes[0]:'size': (640, 480),
@@ -41,7 +41,7 @@ class Picam:
 
         while True:
             now = datetime.now()
-            filename = f'''images/{now.year}{now.month:0>2}{now.day:0>2}{now.hour:0>2}{now.minute:0>2}{now.second:0>2}{now.microsecond}-{speed:0>2}.jpg'''
+            filename = f'''images/{now.year}{now.month:0>2}{now.day:0>2}{now.hour:0>2}{now.minute:0>2}{now.second:0>2}{now.microsecond:0>6}-{speed:0>2}.jpg'''
 
             text = now.isoformat(timespec='seconds')
             image_size = self.camera.camera_configuration()["main"]["size"]
