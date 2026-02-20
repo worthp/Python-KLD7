@@ -42,6 +42,7 @@ class Controller:
         self.max_magnitude = "max_magnitude"
         self.speed_counts = "speed_counts"
         self.hourly_counts = "hourly_counts"
+        self.hourly_count_gt_30 = "hourly_count_gt_30"
 
         # set mins to a big value so they get reset
         self.stats[self.read_count] = 0
@@ -60,6 +61,11 @@ class Controller:
         for i in range(0, 24):
             h.append(0)
         self.stats[self.hourly_counts] = h
+
+        h = []
+        for i in range(0, 24):
+            h.append(0)
+        self.stats[self.hourly_count_gt_30] = h
 
         h = {}
         for b in self.speed_buckets:
@@ -194,6 +200,9 @@ class Controller:
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
 
                     self.stats[self.hourly_counts][now.hour] += 1
+                    if (speed > 30):
+                        self.stats[self.hourly_count_gt_30][now.hour] += 1
+                        
                     self.dropInBucket(self.speed_buckets, self.stats[self.speed_counts], speed)
                     
                     if (self.camera != None and speed > self.speed_threshold):

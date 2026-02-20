@@ -176,8 +176,8 @@ class HttpInterface:
 
                 s += f"""<tr>
                 <td>{hours:0>2}:{minutes:0>2}:{seconds:0>2}</td>
-                <td>{reading['distance']:0>4}</td>
                 <td>{reading['speed']:0>2.2f}</td>
+                <td>{reading['distance']:0>4}</td>
                 <td>{reading['angle']:0>2.4f}</td>
                 <td>{reading['magnitude']}</td>
                 </tr>
@@ -194,7 +194,8 @@ class HttpInterface:
     def statsPage(self, path):
         stats = self.controller.getStats()
 
-        s = '<table class="radar"><thead>'
+        s = '<br/>'
+        s += '<table class="radar"><thead>'
         
         s += f"""
         <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
@@ -206,46 +207,52 @@ class HttpInterface:
 
         s += '</thead></table>'
 
-
-        s += '<br/><table class="radar">'
-        s += "<thead><tr><th colspan='13'>Trackings by Hour</th></tr></thead>"
+        ####################
+        s += '<br/><table class="radar"><thead><tr><th colspan="13">Trackings by Hour</th></tr></thead>'
 
         counts = stats[self.controller.hourly_counts]
 
-        labelRow = "<tr><th>Hour</th>"
-        countRow = "<tr><th>Count</th>"
-
+        amRow = "<tr><th>AM</th>"
         for hour in range(0,12):
-            labelRow += f"""<td>{hour:0>2}</td>"""
-            countRow += f"""<td>{counts[hour]}</td>"""
+            amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+        amRow += "</tr>"
 
-        labelRow += "</tr>"
-        countRow += "</tr>"
-        s += labelRow
-        s += countRow
-
-        labelRow = "<tr><th>Hour</th>"
-        countRow = "<tr><th>Count</th>"
+        pmRow = "<tr><th>PM</th>"
         for hour in range(12,24):
-            labelRow += f"""<td>{hour:0>2}</td>"""
-            countRow += f"""<td>{counts[hour]}</td>"""
+            pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+        pmRow += "</tr>"
 
-        labelRow += "</tr>"
-        countRow += "</tr>"
-
-
-        s += labelRow + countRow
-        s += '</thead></table>'
+        s += amRow + pmRow + '</thead></table>'
 
         s += '<br/>'
+        #############################################
         s += '<table class="radar">'
-        s += "<thead><tr><th colspan='3'>Trackings by Speed Bucket</th></tr></thead>"
-        s += "<thead><tr><th class='col-width-5'>Speed Bucket</th><th class='col-width-80'>Count</th></tr></thead>"
-        #print(stats[self.controller.speed_counts])
+        s += "<thead><th colspan='12'>Trackings by Speed Bucket</th></thead>"
+        s += "<tr>"
+        s += "<th>Bucket/Count</th>"
         for speed, count in stats[self.controller.speed_counts].items():
-            s += f"""<tr><td>{speed}</td><td>{count}</td></tr>"""
+            s += f"""<td>{speed}/{count}</td>"""
+        s += "</tr>"
 
         s += '</table>'
+        ###############################################################################################
+        s += '<br/><table class="radar"><thead><tr><th colspan="13"> Over 30 by Hour</th></tr></thead>'
+
+        counts = stats[self.controller.hourly_count_gt_30]
+
+        amRow = "<tr><th>AM</th>"
+        for hour in range(0,12):
+            amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+        amRow += "</tr>"
+
+        pmRow = "<tr><th>PM</th>"
+        for hour in range(12,24):
+            pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+        pmRow += "</tr>"
+
+        s += amRow + pmRow + '</thead></table>'
+
+        s += '<br/>'
 
         return s
         
