@@ -54,7 +54,7 @@ class Controller:
         self.stats[self.min_magnitude] = 10000
         self.stats[self.max_magnitude] = 0
 
-        self.speed_buckets = [5,10,15,20,25,30,35,40,45,50]
+        self.speed_buckets = [1,5,10,15,20,25,30,35,40,45,50]
 
         h = []
         for i in range(0, 24):
@@ -73,7 +73,7 @@ class Controller:
     def dropInBucket(self, buckets, counts, v):
         for b in buckets[::-1]:
             if v > b:
-                buckets[str(b)] += 1
+                counts[str(b)] += 1
                 break
     
     def __del__ (self):
@@ -132,7 +132,7 @@ class Controller:
         return self.radar.setParameter(name, value)
 
     def setSpeedThreshold(self, threshold):
-        self.speed_threshold = threshold
+        self.speed_threshold = int(threshold)
     
     def getStats(self):
         return self.stats
@@ -194,8 +194,9 @@ class Controller:
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
 
                     self.stats[self.hourly_counts][now.hour] += 1
-                    self.dropInBucket(self.speed_buckets,self.stats[self.speed_counts], speed)
+                    self.dropInBucket(self.speed_buckets, self.stats[self.speed_counts], speed)
                     
+                    logger.info(f'''speed [{speed}] th[{self.speed_threshold}]''')
                     if (self.camera != None and speed > self.speed_threshold):
                          self.camera.takeStill(speed, distance)
 
