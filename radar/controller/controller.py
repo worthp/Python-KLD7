@@ -196,7 +196,6 @@ class Controller:
                     self.stats[self.hourly_counts][now.hour] += 1
                     self.dropInBucket(self.speed_buckets, self.stats[self.speed_counts], speed)
                     
-                    logger.info(f'''speed [{speed}] th[{self.speed_threshold}]''')
                     if (self.camera != None and speed > self.speed_threshold):
                          self.camera.takeStill(speed, distance)
 
