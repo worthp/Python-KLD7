@@ -238,7 +238,7 @@ class HttpInterface:
         s += "<th>Bucket/Count</th>"
         for speed, count in stats[self.controller.speed_counts].items():
             if (count > 0):
-                s += f"""<td class='highlight>{speed}/{count}</td>"""
+                s += f"""<td class='highlight'>{speed}/{count}</td>"""
             else:
                 s += f"""<td>{speed}/{count}</td>"""
         s += "</tr>"
