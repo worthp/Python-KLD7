@@ -115,7 +115,7 @@ class HttpInterface:
         currentThreshold = self.controller.speed_threshold
 
         s += "<tr>"
-        s += f'''<td>speed threshold</td><td>{currentThreshold}</td>'''
+        s += f'''<td>speed threshold for photo</td><td>{currentThreshold}</td>'''
         s += '<td>'
         for p in self.controller.speed_buckets:
             s += f'''<a href='/radarcontrol/setspeedthreshold/{p}'>{p}</a>&nbsp;'''
@@ -161,7 +161,11 @@ class HttpInterface:
 
         s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
         s += f'''<p>Last Tracked Reading Duration {lastTrackedHours:0>2}:{lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
-        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Speed(mph)</th><th>Distance (cm)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
+        s += '''<table class="radar">
+                <thead>
+                <tr><th colspan='5' class='highlight'>Radar Tracked Data</th></tr>
+                <tr><th>Elapsed Time</th><th>Speed(mph)</th><th>Distance (cm)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>
+                </thead>'''
         
         if (len(tdatReadings) > 0):
             for reading in tdatReadings:
@@ -185,7 +189,7 @@ class HttpInterface:
         else:
             s += f"""<tr><td colspan='5'>No Readings Available</td></tr>"""
 
-        s += '</thead></table>'
+        s += '</table>'
 
         s += '<br/>' + self.statsPage(path)
 
@@ -195,7 +199,10 @@ class HttpInterface:
         stats = self.controller.getStats()
 
         s = '<br/>'
-        s += '<table class="radar"><thead>'
+        s += '''<table class="radar">
+                <thead>
+                <tr><td colspan='2' class='highlight'>Basic Metrics</td></tr>
+                </thead>'''
         
         s += f"""
         <tr><th class='col-width-15'>Total Reads</th><td class='col-width-85'>{stats[self.controller.read_count]}</td></tr>
@@ -205,10 +212,10 @@ class HttpInterface:
         <tr><th>Min/Max Magnitude(dB)</th><td>{stats[self.controller.min_magnitude]}/{stats[self.controller.max_magnitude]}</td></tr>
         """
 
-        s += '</thead></table>'
+        s += '</table>'
 
         ####################
-        s += '<br/><table class="radar"><thead><tr><th colspan="13">Trackings by Hour</th></tr></thead>'
+        s += '<br/><table class="radar"><thead><tr><th class="highlight" colspan="13">Trackings by Hour</th></tr></thead>'
 
         counts = stats[self.controller.hourly_counts]
 
@@ -233,7 +240,7 @@ class HttpInterface:
         s += '<br/>'
         #############################################
         s += '<table class="radar">'
-        s += "<thead><th colspan='12'>Trackings by Speed Bucket</th></thead>"
+        s += "<thead><th class='highlight' colspan='12'>Trackings by Speed Bucket</th></thead>"
         s += "<tr>"
         s += "<th>Bucket/Count</th>"
         for speed, count in stats[self.controller.speed_counts].items():
@@ -245,7 +252,7 @@ class HttpInterface:
 
         s += '</table>'
         ###############################################################################################
-        s += '<br/><table class="radar"><thead><tr><th colspan="13"> Over 30 by Hour</th></tr></thead>'
+        s += '<br/><table class="radar"><thead><tr><th class="highlight" colspan="13"> Over 30 by Hour</th></tr></thead>'
 
         counts = stats[self.controller.hourly_count_gt_30]
 

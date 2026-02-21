@@ -26,6 +26,9 @@ table.radar tr:nth-child(even) {
 td.highlight {
   background-color: lightblue;
 }
+th.highlight {
+  background-color: lightblue;
+}
 thead, th {
   background-color: darkgray;
 }
