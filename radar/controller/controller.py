@@ -28,7 +28,7 @@ class Controller:
         self._maxTDATReadings = 10
         self._lastTDATReadingIndex = -1
         
-        self._lastTrackedReadingTime = 0
+        self._lastTrackedReadingTime = time.time() * 1000
 
         self.stats = {}
         self.read_count = "read_count"
@@ -77,8 +77,9 @@ class Controller:
         return
 
     def dropInBucket(self, buckets, counts, v):
+        # going backwards through bucket list
         for b in buckets[::-1]:
-            if v > b:
+            if v >= b:
                 counts[str(b)] += 1
                 break
     
