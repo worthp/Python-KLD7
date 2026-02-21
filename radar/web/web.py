@@ -198,7 +198,7 @@ class HttpInterface:
         s += '<table class="radar"><thead>'
         
         s += f"""
-        <tr><th>Total Reads</th><td>{stats[self.controller.read_count]}</td></tr>
+        <tr><th class='col-width-15'>Total Reads</th><td class='col-width-85'>{stats[self.controller.read_count]}</td></tr>
         <tr><th>Min/Max Distance(cm)</th><td>{stats[self.controller.min_distance]:0>4}/{stats[self.controller.max_distance]:0>4}</td></tr>
         <tr><th>Min/Max Speed (mph)</th><td>{stats[self.controller.min_speed]:0>2.2f}/{stats[self.controller.max_speed]:0>2.2f}</td></tr>
         <tr><th>Min/Max Angle(rad)</th><td>{stats[self.controller.min_angle]:0>2.4f}/{stats[self.controller.max_angle]:0>2.4f}</td></tr>
