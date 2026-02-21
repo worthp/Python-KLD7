@@ -23,6 +23,9 @@ table.radar tr:nth-child(odd) {
 table.radar tr:nth-child(even) {
     background-color: lightgray;
 }
+td.highlight {
+  background-color: lightblue;
+}
 thead, th {
   background-color: darkgray;
 }

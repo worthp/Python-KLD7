@@ -214,12 +214,18 @@ class HttpInterface:
 
         amRow = "<tr><th>AM</th>"
         for hour in range(0,12):
-            amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+            if (counts[hour]>0):
+                amRow += f"""<td class='highlight'>{hour:0>2}/{counts[hour]}</td>"""
+            else:
+                amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
         amRow += "</tr>"
 
         pmRow = "<tr><th>PM</th>"
         for hour in range(12,24):
-            pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+            if (counts[hour]>0):
+                pmRow += f"""<td class='highlight'>{hour:0>2}/{counts[hour]}</td>"""
+            else:
+                pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
         pmRow += "</tr>"
 
         s += amRow + pmRow + '</thead></table>'
@@ -231,7 +237,10 @@ class HttpInterface:
         s += "<tr>"
         s += "<th>Bucket/Count</th>"
         for speed, count in stats[self.controller.speed_counts].items():
-            s += f"""<td>{speed}/{count}</td>"""
+            if (count > 0):
+                s += f"""<td class='highlight>{speed}/{count}</td>"""
+            else:
+                s += f"""<td>{speed}/{count}</td>"""
         s += "</tr>"
 
         s += '</table>'
@@ -242,12 +251,18 @@ class HttpInterface:
 
         amRow = "<tr><th>AM</th>"
         for hour in range(0,12):
-            amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+            if (counts[hour] > 0):
+                amRow += f"""<td class='highlight'>{hour:0>2}/{counts[hour]}</td>"""
+            else:
+                amRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
         amRow += "</tr>"
 
         pmRow = "<tr><th>PM</th>"
         for hour in range(12,24):
-            pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
+            if (counts[hour] > 0):
+                pmRow += f"""<td class='highlight'>{hour:0>2}/{counts[hour]}</td>"""
+            else:
+                pmRow += f"""<td>{hour:0>2}/{counts[hour]}</td>"""
         pmRow += "</tr>"
 
         s += amRow + pmRow + '</thead></table>'
