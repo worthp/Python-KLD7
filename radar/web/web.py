@@ -161,7 +161,7 @@ class HttpInterface:
 
         s = f'''<p>Uptime {upHours:0>2}:{upMinutes:0>2}:{upSeconds:0>2}</p>'''
         s += f'''<p>Last Tracked Reading Duration {lastTrackedHours:0>2}:{lastTrackedMinutes:0>2}:{lastTrackedSeconds:0>2}</p>'''
-        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Distance (cm)</th><th>Speed(mph)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
+        s += '<table class="radar"><thead><tr><th>Elapsed Time</th><th>Speed(mph)</th><th>Distance (cm)</th><th>Angle(rad)</th><th>Magnitude(dB)</th>'
         
         if (len(tdatReadings) > 0):
             for reading in tdatReadings:
