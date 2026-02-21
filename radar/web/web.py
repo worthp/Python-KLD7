@@ -375,7 +375,7 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.wfile.write(bytes("<body>", "utf-8"))
 
         self.wfile.write(bytes(self.http_interface.pageHeader(self.path), "utf-8"))
-        if (self.path.endswith('/images')):
+        if (self.path.endswith('/images') or self.path.endswith('images/')):
             section = self.http_interface.imagesPage(self.path, translated_path)
             self.wfile.write(bytes(section, "utf-8"))
         else:

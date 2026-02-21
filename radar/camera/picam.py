@@ -51,7 +51,7 @@ class Picam:
             font = cv2.FONT_HERSHEY_COMPLEX
             color = (255, 255, 255)
             thickness = 2
-            status = f'''{text} [{speed}] [{distance}] [{magnitude}] [{angle}] [{self.camera.camera_configuration()["main"]["size"]}]'''
+            status = f'''{text} [{speed} mph] [{distance} cm] [{magnitude} dB] [{angle:0>2.2f} rad] [{self.camera.camera_configuration()["main"]["size"]}]'''
 
             with self.camera.captured_request() as request:
                 with MappedArray(request, 'main') as m:
