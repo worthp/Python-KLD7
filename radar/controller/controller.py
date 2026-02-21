@@ -162,7 +162,7 @@ class Controller:
         return
 
     def takeStill(self):
-        self.camera.takeStill("0", "0")
+        self.camera.takeStill("0", "0", 0, 0)
     
     def run(self):
 
