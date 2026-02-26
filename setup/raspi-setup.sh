@@ -9,7 +9,7 @@ sudo apt update
 sudo apt upgrade -y
 
 # move the primary uart to gpio pins so we radar can use them
-echo 'dtoverlay=disable-bt' >> /boot/firmware/config.txt
+echo 'dtoverlay=disable-bt' | sudo tee --append /boot/firmware/config.txt
 
 # cli raspi-config to disable console from serial
 sudo /usr/bin/raspi-config nonint do_serial_cons 1

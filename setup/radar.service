@@ -3,9 +3,9 @@ Description=KLD7 Radar
 After=multi-user.target
 
 [Service]
-User=worthp
-WorkingDirectory=/home/worthp/radar-service
-ExecStart=stdbuf -o0 /home/worthp/.pyenvs/default/bin/python main.py -d /dev/ttyAMA0
+User=radar
+WorkingDirectory=/home/radar/radar-service
+ExecStart=stdbuf -o0 /home/radar/.pyenvs/default/bin/python main.py -d /dev/ttyAMA0
 Restart=no
 
 [Install]
