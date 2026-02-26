@@ -172,7 +172,9 @@ class Controller:
             return
         
         try:
-            counter = 0
+            counter = 0 # just to reduce logging noise
+            countIt = True # reducing multi counting of the same target
+            
             while not self.isStopped:
                 now = datetime.now()
                 distance, speed, angle, magnitude = self.radar.getTDAT()
@@ -200,21 +202,25 @@ class Controller:
                     self.stats[self.max_angle] = max(angle, self.stats[self.max_angle])
                     self.stats[self.max_magnitude] = max(magnitude, self.stats[self.max_magnitude])
 
-                    self.stats[self.hourly_counts][now.hour] += 1
-                    if (speed > 30):
-                        self.stats[self.hourly_count_gt_30][now.hour] += 1
+                    if (countIt):
+                        self.stats[self.hourly_counts][now.hour] += 1
+                        if (speed > 30):
+                            self.stats[self.hourly_count_gt_30][now.hour] += 1
+                            
+                        self.dropInBucket(self.speed_buckets, self.stats[self.speed_counts], speed)
                         
-                    self.dropInBucket(self.speed_buckets, self.stats[self.speed_counts], speed)
-                    
                     if (self.camera != None and speed > self.speed_threshold):
                          self.camera.takeStill(speed, distance, magnitude, angle)
 
+                    countIt = False # don't count consecutive reads as different targets
+
                 else:
-                    if (counter > 200):
+                    if (counter > 1000): # nearly completely arbitrary. it's about 40 seconds
                         logger.info('*')
                         counter = 0
 
                     counter += 1
+                    countIt = True # means on the next target will be 'new'
                     
                 time.sleep(0.033) # mostly arbitrary
                 
