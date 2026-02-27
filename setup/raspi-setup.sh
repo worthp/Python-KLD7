@@ -20,7 +20,6 @@ sudo crontab - << EOF
 @reboot /usr/sbin/iw wlan0 set power_save off
 EOF
 
-
 # disable cloud-init going forward
 sudo touch /etc/cloud/cloud-init.disabled
 
@@ -40,11 +39,11 @@ sudo apt install -y minicom
 mkdir -p .pyenvs/default
 python -m venv --system-site-packages .pyenvs/default
 chmod 755 ~/.pyenvs/default/bin/activate
-#
+
 # for creating overlay on pics
 ~/.pyenvs/default/bin/pip install opencv-python-headless
 
-# put code where systemd service will look for it
+# get and put code where systemd service will look for it
 # maybe package this one day
 wget https://github.com/worthp/Python-KLD7/archive/refs/tags/latest.zip -O radar.zip
 unzip radar.zip
@@ -53,10 +52,15 @@ mkdir radar-service
 mv Python-KLD7-latest/radar/* radar-service
 mkdir radar-service/images
 
-# install systemd radar service 
-sudo cp Python-KLD7-latest/setup/radar.service /etc/systemd/system
+mv Python-KLD7-latest/radarwifi-service/* .
+sudo cp radarwifi-service/radar-ap.nmconnection /etc/NetworkManager/system-connections
+
+# install systemd radar services
+sudo cp radar-service/radar.service /etc/systemd/system
+sudo cp radarwifi-service/radarwifi.service /etc/systemd/system
 sudo systemctl daemon-reload
 sudo systemctl status radar
+sudo systemctl status radarwifi
 
 #
 # development set up

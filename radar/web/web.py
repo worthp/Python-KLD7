@@ -1,9 +1,11 @@
 import sys
+import subprocess
 import os
 import shutil
 import logging
 import threading
 import time
+from urllib.parse import parse_qs
 
 import http.server as http
 from os.path import isfile, isdir
@@ -23,6 +25,7 @@ class HttpInterface:
         self.routes = {}
 
         # order matters here. keep / at the end; longer matches at the top
+        self.routes['/hostcontrol/setWifiCreds'] = self.setWifiCreds
         self.routes['/hostcontrol/reboot'] = self.hostRebootPage
         self.routes['/hostcontrol'] = self.hostControlPage
         #self.routes['/radarcontrol/resetradar'] = self.radarReset
@@ -301,11 +304,24 @@ class HttpInterface:
         <div><a href='/hostcontrol/reboot'>Reboot</a></div>
         """
 
+    def setWifiCreds(self, form_data):
+        ssid = form_data["ssid"][0]
+        psk = form_data["passkey"][0])
+
+        logger.info(f'''ssid[{ssid}] [{psk}]''')
+
+        output = subprocess.run(["/usr/bin/sudo","/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi.ssid",ssid], capture_output=True)
+        logger.info(output)
+        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi-sec.psk",psk], capture_output=True)
+        logger.info(output)
+        # dont bring down access point. upping ssid should do that if successful
+        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","up","netplan-wlan0-radar-ssid"], capture_output=True)
+        logger.info(output)
+        
     def hostRebootPage(self, path):
         
         logger.info("shutting down")
         command = "/usr/bin/sudo /usr/sbin/reboot"
-        import subprocess
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         output = process.communicate()[0]
         logger.info(output)
@@ -376,6 +392,29 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         super().log_message(format, *args)
         return
+    
+    
+    def do_POST(self):
+        logger.info("setting wifi creds")
+        content_length = int(self.headers.get('Content-Length', 0))
+
+        post_body_bytes = self.rfile.read(content_length)
+        post_body_str = post_body_bytes.decode('utf-8')
+     
+        # Check Content-Type header
+        content_type = self.headers.get('Content-Type', '')
+        if 'application/x-www-form-urlencoded' in content_type:
+            # Parse form data into a dictionary
+            form_data = parse_qs(post_body_str)
+            self.http_interface.setWifiCreds(form_data)
+            response = f"Form Data Received: {form_data}"
+        else:
+            response = f"Raw Data Received: {post_body_str}"
+     
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(response.encode('utf-8'))
 
     def do_GET(self):
         # let super class to serve the file since that's what it does
