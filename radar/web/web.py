@@ -306,7 +306,7 @@ class HttpInterface:
 
     def setWifiCreds(self, form_data):
         ssid = form_data["ssid"][0]
-        psk = form_data["passkey"][0])
+        psk = form_data["passkey"][0]
 
         logger.info(f'''ssid[{ssid}] [{psk}]''')
 

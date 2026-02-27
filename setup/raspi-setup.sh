@@ -45,14 +45,14 @@ chmod 755 ~/.pyenvs/default/bin/activate
 
 # get and put code where systemd service will look for it
 # maybe package this one day
-wget https://github.com/worthp/Python-KLD7/archive/refs/tags/latest.zip -O radar.zip
+wget -O radar.zip https://github.com/worthp/Python-KLD7/archive/refs/heads/main.zip
 unzip radar.zip
 
 mkdir radar-service
-mv Python-KLD7-latest/radar/* radar-service
+mv Python-KLD7-main/radar/* radar-service
 mkdir radar-service/images
 
-mv Python-KLD7-latest/radarwifi-service/* .
+mv Python-KLD7-main/radarwifi-service .
 sudo cp radarwifi-service/radar-ap.nmconnection /etc/NetworkManager/system-connections
 
 # install systemd radar services
