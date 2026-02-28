@@ -1,0 +1,192 @@
+#cloud-config
+hostname: radar
+manage_etc_hosts: true
+packages:
+- avahi-daemon
+apt:
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+timezone: America/New_York
+keyboard:
+  model: pc105
+  layout: "us"
+enable_ssh: true
+users:
+- name: radar
+  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: $y$jB5$9R2AmJ1J0Vp97RKJrg4RW/$8vundPZb4l6ppz3oT5fALlD4Y8B2ePbHE.ouTudByD9
+ssh_pwauth: true
+rpi:
+  interfaces:
+    serial: true
+write_files:
+- path: /etc/NetworkManager/system-connections/radar-ap.nmconnection
+  owner: root:root
+  permissions: '0600'
+  content: |
+    [connection]
+    id=radar-ap
+    uuid=93c77223-3fb2-4fef-831e-97918523c38d
+    type=wifi
+    autoconnect=true
+    interface-name=wlan0
+
+    [wifi]
+    band=bg
+    mode=ap
+    ssid=radar-ap
+
+    [wifi-security]
+    group=ccmp;
+    key-mgmt=wpa-psk
+    pairwise=ccmp;
+    proto=rsn;
+    psk=stopspeeding
+
+    [ipv4]
+    method=shared
+
+    [ipv6]
+    addr-gen-mode=default
+    method=ignore
+
+    [proxy]
+- path: /etc/systemd/system/radar.service
+  owner: root:root
+  permissions: '0600'
+  content: |
+    [Unit]
+    Description=KLD7 Radar
+    After=multi-user.target
+
+    [Service]
+    User=radar
+    WorkingDirectory=/home/radar/radar-service
+    ExecStart=stdbuf -o0 /home/radar/.pyenvs/default/bin/python main.py -d /dev/ttyAMA0
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+- path: /etc/systemd/system/radarwifi.service
+  owner: root:root
+  permissions: '0600'
+  content: |
+    [Unit]
+    Description=KLD7 Radar Wifi Service. Spins up hotspot if wifi is disconnected for a period
+    After=multi-user.target
+
+    [Service]
+    User=radar
+    WorkingDirectory=/home/radar/radar-service
+    ExecStart=stdbuf -o0 /home/radar/.pyenvs/default/bin/python wificheck.py
+    Restart=no
+
+    [Install]
+    WantedBy=multi-user.target
+- path: /home/radar/raspi-setup.sh
+  defer: true
+  owner: radar:radar
+  permissions: '0755'
+  content: |
+    #!/usr/bin/bash
+    #
+    sudo nmcli dev wifi connect 'WIFICD2D92-5G' password 'YPUQNEGILDS2MEQN'
+
+    # make sure where we are
+    cd ~
+
+    # standard
+    sudo apt update
+    sudo apt upgrade -y
+
+    # move the primary uart to gpio pins so we radar can use them
+    echo 'dtoverlay=disable-bt' | sudo tee --append /boot/firmware/config.txt
+
+    # cli raspi-config to disable console from serial
+    sudo /usr/bin/raspi-config nonint do_serial_cons 1
+    #
+    # turn off wifi power_save. # doing in cron just because. could be a systemd service as well
+    #
+    sudo crontab - << EOF
+    @reboot /usr/sbin/iw wlan0 set power_save off
+    EOF
+
+    # disable cloud-init going forward
+    sudo touch /etc/cloud/cloud-init.disabled
+
+    # probably overkill but don't let cloud-init fuck with hostnames
+    sudo sed -i '/manage_etc_hosts: true/s//manage_etc_hosts: false/' /boot/firmware/user-data
+
+    # needed for radar to use serial
+    sudo apt install -y python3-serial
+
+    # used by radar for taking pics
+    sudo apt install -y python3-picamera2 --no-install-recommends
+
+    # in case serial comms are wonky require troubleshooting
+    sudo apt install -y minicom
+
+    # create virtual env for python so we can add non-system packages
+    mkdir -p .pyenvs/default
+    python -m venv --system-site-packages .pyenvs/default
+    chmod 755 ~/.pyenvs/default/bin/activate
+
+    # for creating overlay on pics
+    ~/.pyenvs/default/bin/pip install opencv-python-headless
+
+    # get and put code where systemd service will look for it
+    # maybe package this one day
+    wget -O radar.zip https://github.com/worthp/Python-KLD7/archive/refs/heads/main.zip
+    unzip radar.zip
+
+    mv Python-KLD7-main/radar-service .
+    mv Python-KLD7-main/radar/* radar-service
+    mkdir radar-service/images
+
+    mv Python-KLD7-main/radarwifi-service .
+    sudo cp radarwifi-service/radar-ap.nmconnection /etc/NetworkManager/system-connections
+
+    # install systemd radar services
+    sudo cp radar-service/radar.service /etc/systemd/system
+    sudo cp radarwifi-service/radarwifi.service /etc/systemd/system
+    sudo systemctl daemon-reload
+    sudo systemctl status radar
+    sudo systemctl status radarwifi
+
+    #
+    # development set up
+    # 
+    sudo apt install -y git
+
+    # this is for connecting to git
+    git config --global user.name "Patrick Worth"
+    git config --global user.email "worthp@worthconsulting.com"
+
+    # creating ssh keys to be able to connect to git and whereever else
+    mkdir .ssh > /dev/null 2>&1
+    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+
+    # personal prefs
+    cat << EOF > ~/.bash_aliases
+    set -o vi
+    alias r='fc -e -'
+    alias ll='ls -lrt'
+    alias l='ls -A'
+
+    # fucking python
+    ~/.pyenvs/default/bin/activate
+
+    alias py='python'
+    alias pip='~/.pyenvs/default/bin/pip'
+    alias pip3='~/.pyenvs/default/bin/pip3'
+    alias python='~/.pyenvs/default/bin/python'
+    EOF
+
+    source ~/.bash_aliases
+
+    mkdir -p devel/software
+    sudo nmcli connection delete 'WIFICD2D92-5G'

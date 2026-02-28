@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 #
+sudo nmcli dev wifi connect 'WIFICD2D92-5G' password 'YPUQNEGILDS2MEQN'
 
 # make sure where we are
 cd ~
@@ -48,7 +49,7 @@ chmod 755 ~/.pyenvs/default/bin/activate
 wget -O radar.zip https://github.com/worthp/Python-KLD7/archive/refs/heads/main.zip
 unzip radar.zip
 
-mkdir radar-service
+mv Python-KLD7-main/radar-service .
 mv Python-KLD7-main/radar/* radar-service
 mkdir radar-service/images
 
@@ -62,18 +63,6 @@ sudo systemctl daemon-reload
 sudo systemctl status radar
 sudo systemctl status radarwifi
 
-#
-# development set up
-# 
-sudo apt install -y git
-
-# this is for connecting to git
-git config --global user.name "Patrick Worth"
-git config --global user.email "worthp@worthconsulting.com"
-
-# creating ssh keys to be able to connect to git and whereever else
-mkdir .ssh > /dev/null 2>&1
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
 
 # personal prefs
 cat << EOF > ~/.bash_aliases
@@ -94,3 +83,4 @@ EOF
 source ~/.bash_aliases
 
 mkdir -p devel/software
+sudo nmcli connection delete 'WIFICD2D92-5G'

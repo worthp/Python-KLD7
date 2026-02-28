@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 from urllib.parse import parse_qs
+import re
 
 import http.server as http
 from os.path import isfile, isdir
@@ -286,37 +287,93 @@ class HttpInterface:
         with open("/proc/uptime", mode="r") as data:
           ut = int(float(data.read().split(' ')[0]))
                 
-        d = int(ut/86400)
-        h = int((ut%86400)/3600)
-        m = int((ut%3600) / 60)
-        s = int((ut%60))
+        days = int(ut/86400)
+        hours = int((ut%86400)/3600)
+        minutes = int((ut%3600) / 60)
+        seconds = int((ut%60))
 
-        return f"""
+        (total, used, free) = shutil.disk_usage('.')
+        
+        memory =[]
+        with open('/proc/meminfo', 'r', encoding='utf-8') as meminfo:
+            lines = meminfo.readlines()
+            for line in lines:
+                match = re.match(r'^(\w+):\s+(\d+)\s+(\w+)', line)
+
+                if (match != None):
+                    memory.append([match[1], match[2], match[3]])
+
+        # first see what connection we have
+        onRadarAP = False
+        output = subprocess.run(["nmcli", "-f", "general.connection", "device", "show", "wlan0"], capture_output=True)
+        m = re.match(r'GENERAL.CONNECTION: +(radar-ap)', output.stdout.decode('utf-8'))
+        if (m != None):
+            onRadarAP = True
+
+        section =  f"""
         <h2>Host Control</h2>
         <ol>
-            <li>Booted at</li>
-            <li>Uptime</li>
-            <li>Memory Stats</li>
-            <li>Disk Stats</li>
-            <li>Camera Control(Or just reboot?</li>
+            <li>Camera Control</li>
         </ol>
-        <div>Uptime {d:0>2} days {h:0>2}:{m:0>2}:{s:0>2}</div>
+        <div>Uptime {days:0>2} days {hours:0>2}:{minutes:0>2}:{seconds:0>2}</div>
         <div><a href='/hostcontrol/reboot'>Reboot</a></div>
+        <table class='radar'>
+            <tr><th colspan='3' class='highlight'>Memory Stats</th></tr>
+            <tr><td>{memory[0][0]}</td><td>{memory[1][0]}</td><td>{memory[2][0]}</td></tr>
+            <tr><td>{memory[0][1]} {memory[0][2]}</td><td>{memory[1][1]} {memory[1][2]}</td><td>{memory[2][1]} {memory[2][2]}</td></tr>
+        </table>
+        <br/>
+        <table class='radar'>
+            <tr><th colspan='3' class='highlight'>Disk Stats</th></tr>
+            <tr><th>Free %</th><th>Total (G)</th><th>Used (G)</th></tr>
+            <tr><td>{int(free/total*100)}</td><td>{int(total/1073741824)}</td><td>{int(used/1073741824)}</td></tr>
+        </table>
         """
 
+        if (True or onRadarAP):
+            section += f"""
+        <div id="wifi-credentials-form">
+        <h3>Enter Credentials to Local Network</h3>
+        <form action="/setWifiCreds" method="post">
+            <p>
+                <label for="ssid">ssid:</label>
+                <input type="text" id="ssid" name="ssid" />
+            </p>
+            <p>
+                <label for="passkey">passkey:</label>
+                <input type="text" id="passkey" name="passkey" />
+            </p>
+            <input type="submit" value="Set Credentials"/>
+        </form> 
+        </div>
+        """
+        return section
+
     def setWifiCreds(self, form_data):
+
         ssid = form_data["ssid"][0]
         psk = form_data["passkey"][0]
 
-        logger.info(f'''ssid[{ssid}] [{psk}]''')
-
+        # always use the same connection profile and set ssid and psk
         output = subprocess.run(["/usr/bin/sudo","/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi.ssid",ssid], capture_output=True)
-        logger.info(output)
+        logger.info(f'''netplan-wlan0-radar-ssid ssid modify [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''netplan-wlan0-radar-ssid ssid modify [{output.stderr.decode("utf-8")}]''')
+
         output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi-sec.psk",psk], capture_output=True)
-        logger.info(output)
-        # dont bring down access point. upping ssid should do that if successful
+        logger.info(f'''netplan-wlan0-radar-ssid psk modify stdout [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''netplan-wlan0-radar-ssid psk modify stderr [{output.stderr.decode("utf-8")}]''')
+
         output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","up","netplan-wlan0-radar-ssid"], capture_output=True)
-        logger.info(output)
+        logger.info(f'''netplan-wlan0-radar-ssid up stdout [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''netplan-wlan0-radar-ssid up stderr [{output.stderr.decode("utf-8")}]''')
+        m = re.match(r'(^Connection successfully activated).+', output.stdout.decode('utf-8'))
+
+        # Success
+        if (m != None):
+            return True
+        
+        # Fail
+        return False
         
     def hostRebootPage(self, path):
         
@@ -406,8 +463,8 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         if 'application/x-www-form-urlencoded' in content_type:
             # Parse form data into a dictionary
             form_data = parse_qs(post_body_str)
-            self.http_interface.setWifiCreds(form_data)
-            response = f"Form Data Received: {form_data}"
+            credSetSuccessful = self.http_interface.setWifiCreds(form_data)
+            response = f"Successful [{credSetSuccessful}] Form Data Received: {form_data}"
         else:
             response = f"Raw Data Received: {post_body_str}"
      
@@ -415,6 +472,11 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.send_header('Content-Type', 'text/plain; charset=utf-8')
         self.end_headers()
         self.wfile.write(response.encode('utf-8'))
+        
+        # restart the server is network iface changed
+        if (credSetSuccessful == True):
+            self.server.server_close()
+            self.http_interface.go()
 
     def do_GET(self):
         # let super class to serve the file since that's what it does

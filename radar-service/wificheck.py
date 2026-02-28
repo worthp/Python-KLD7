@@ -24,7 +24,7 @@ def isWifiConnected():
 def upAccessPoint():
 	logger.info("Attempting to up radar-ap connection")
 	# kinda fragile
-	output = subprocess.run(["nmcli", "conn", "up", "radar-ap"], capture_output=True)
+	output = subprocess.run(["sudo", "nmcli", "conn", "up", "radar-ap"], capture_output=True)
 	logger.info(output.stdout.decode('utf-8'))
 	logger.info(output.stderr.decode('utf-8'))
 
@@ -33,8 +33,8 @@ def check():
 	if (not isWifiConnected()):
 		if (os.path.isfile(control_file)):
 			r = os.stat(control_file)
-			# bring up radar-ap connection if wifi is down for 10 minutes
-			if (time.time() - r.st_ctime) > 600:
+			# bring up radar-ap connection if wifi is down for 5 minutes
+			if (time.time() - r.st_ctime) > 300:
 				upAccessPoint()
 				# restart the clock 
 				open(control_file, "w").close()
