@@ -330,7 +330,7 @@ class HttpInterface:
         </table>
         """
 
-        if (True or onRadarAP):
+        if (onRadarAP):
             section += f"""
         <div id="wifi-credentials-form">
         <h3>Enter Credentials to Local Network</h3>
