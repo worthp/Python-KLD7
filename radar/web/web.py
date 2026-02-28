@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class HttpInterface:
     def __init__(self):
-        self.controller:Controller = None
+        self.controller:Controller = None # type: ignore
         self.routes = {}
 
         # order matters here. keep / at the end; longer matches at the top
@@ -444,7 +444,7 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
     Inherits from BaseHTTPRequestHandler to override standard methods.
     """
 
-    http_interface:HttpInterface = None
+    http_interface:HttpInterface = None # type: ignore
 
     def log_message(self, format, *args):
         super().log_message(format, *args)
