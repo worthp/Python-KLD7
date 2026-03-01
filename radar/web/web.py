@@ -333,7 +333,7 @@ class HttpInterface:
         <br/>
         <table class='radar'>
             <tr><th colspan='3' class='highlight'>Disk Stats</th></tr>
-            <tr><th>Free %</th><th>Total/th><th>Used</th></tr>
+            <tr><th>Free %</th><th>Total</th><th>Used</th></tr>
             <tr><td>{int(free/total*100)}</td><td>{int(total/1073741824)}G</td><td>{int(used/1073741824)}G</td></tr>
         </table>
         """
@@ -398,8 +398,10 @@ class HttpInterface:
         output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","down","netplan-wlan0-radar-ssid"], capture_output=True)
         logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
         logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
+
         # taking the connection away from https server makes it unhappy. just restart ourselves
-        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl","restart"," radar"], capture_output=True)
+        #self.server.server_close()
+        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl","kill", "SIGTERM", "radar"], capture_output=True)
 
 
     def radarReset(self, path):
@@ -492,7 +494,8 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         
         # taking the connection away from https server makes it unhappy. just restart ourselves
         if (credSetSuccessful == True):
-            output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl","restart"," radar"], capture_output=True)
+            self.server.server_close()
+            output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl", "kill", "SIGTERM", "radar"], capture_output=True)
 
     def do_GET(self):
         # let super class to serve the file since that's what it does
@@ -526,6 +529,4 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         # gotta restart since the network iface changed. just like with setWifiCreds
         if (self.path.endswith('forgetssid') or self.path.endswith('forgetssid/')):
             # give some time for radar-ap to come up
-            time.sleep(10)
-            self.server.server_close()
-            self.http_interface.go()
+            pass

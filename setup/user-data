@@ -96,6 +96,11 @@ write_files:
     #
     sudo nmcli dev wifi connect 'WIFICD2D92-5G' password 'YPUQNEGILDS2MEQN'
 
+    # in case this is the first time this thing is connected to the interwebs
+    # apt dont like it when the date is really wrong
+    sudo systemctl restart systemd-timesync
+    sleep 5 # give it some time to catch up
+
     # make sure where we are
     cd ~
 
@@ -103,11 +108,9 @@ write_files:
     sudo apt update
     sudo apt upgrade -y
 
-    # move the primary uart to gpio pins so we radar can use them
-    echo 'dtoverlay=disable-bt' | sudo tee --append /boot/firmware/config.txt
-
     # cli raspi-config to disable console from serial
     sudo /usr/bin/raspi-config nonint do_serial_cons 1
+
     #
     # turn off wifi power_save. # doing in cron just because. could be a systemd service as well
     #
@@ -118,7 +121,7 @@ write_files:
     # disable cloud-init going forward
     sudo touch /etc/cloud/cloud-init.disabled
 
-    # probably overkill but don't let cloud-init fuck with hostnames
+    # probably overkill but don't let cloud-init fuck with hostnames on reboot
     sudo sed -i '/manage_etc_hosts: true/s//manage_etc_hosts: false/' /boot/firmware/user-data
 
     # needed for radar to use serial
@@ -142,6 +145,7 @@ write_files:
     # maybe package this one day
     wget -O radar.zip https://github.com/worthp/Python-KLD7/archive/refs/heads/main.zip
     unzip radar.zip
+    rm radar.zip
 
     mv Python-KLD7-main/radar-service .
     mv Python-KLD7-main/radar/* radar-service
@@ -155,19 +159,6 @@ write_files:
     sudo systemctl enable radar
     sudo systemctl status radarwifi
     sudo systemctl enable radarwifi
-
-    #
-    # development set up
-    # 
-    sudo apt install -y git
-
-    # this is for connecting to git
-    git config --global user.name "Patrick Worth"
-    git config --global user.email "worthp@worthconsulting.com"
-
-    # creating ssh keys to be able to connect to git and whereever else
-    mkdir .ssh > /dev/null 2>&1
-    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
 
     # personal prefs
     cat << EOF > ~/.bash_aliases
@@ -187,5 +178,6 @@ write_files:
 
     source ~/.bash_aliases
 
-    mkdir -p devel/software
+    rm -r Python-KLD7-main
     sudo nmcli connection delete 'WIFICD2D92-5G'
+    sed -i '/WIFICD2D92-5G/d' $0
