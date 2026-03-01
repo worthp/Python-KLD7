@@ -28,6 +28,7 @@ class HttpInterface:
         # order matters here. keep / at the end; longer matches at the top
         self.routes['/hostcontrol/setWifiCreds'] = self.setWifiCreds
         self.routes['/hostcontrol/reboot'] = self.hostRebootPage
+        self.routes['/hostcontrol/forgetssid'] = self.forgetSSID
         self.routes['/hostcontrol'] = self.hostControlPage
         #self.routes['/radarcontrol/resetradar'] = self.radarReset
         self.routes['/radarcontrol/setspeedthreshold'] = self.setSpeedThreshold
@@ -317,6 +318,7 @@ class HttpInterface:
         </ol>
         <div>Uptime {days:0>2} days {hours:0>2}:{minutes:0>2}:{seconds:0>2}</div>
         <div><a href='/hostcontrol/reboot'>Reboot</a></div>
+        <div><a href='/hostcontrol/forgetssid'>Forget Wifi SSID</a>. This will remove radar from the network.</div>
         <table class='radar'>
             <tr><th colspan='3' class='highlight'>Memory Stats</th></tr>
             <tr><td>{memory[0][0]}</td><td>{memory[1][0]}</td><td>{memory[2][0]}</td></tr>
@@ -384,6 +386,13 @@ class HttpInterface:
         logger.info(output)
 
         return self.hostControlPage(path)
+
+    def forgetSSID(self, path):
+        
+        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","down","netplan-wlan0-radar-ssid"], capture_output=True)
+        logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
+
 
     def radarReset(self, path):
         self.controller.resetRadarPower()
