@@ -318,7 +318,13 @@ class HttpInterface:
         </ol>
         <div>Uptime {days:0>2} days {hours:0>2}:{minutes:0>2}:{seconds:0>2}</div>
         <div><a href='/hostcontrol/reboot'>Reboot</a></div>
+        """
+
+        if (onRadarAP == False):
+            section += f"""
         <div><a href='/hostcontrol/forgetssid'>Forget Wifi SSID</a>. This will remove radar from the network.</div>
+        """
+        section += f"""
         <table class='radar'>
             <tr><th colspan='3' class='highlight'>Memory Stats</th></tr>
             <tr><td>{memory[0][0]}</td><td>{memory[1][0]}</td><td>{memory[2][0]}</td></tr>
@@ -327,8 +333,8 @@ class HttpInterface:
         <br/>
         <table class='radar'>
             <tr><th colspan='3' class='highlight'>Disk Stats</th></tr>
-            <tr><th>Free %</th><th>Total (G)</th><th>Used (G)</th></tr>
-            <tr><td>{int(free/total*100)}</td><td>{int(total/1073741824)}</td><td>{int(used/1073741824)}</td></tr>
+            <tr><th>Free %</th><th>Total/th><th>Used</th></tr>
+            <tr><td>{int(free/total*100)}</td><td>{int(total/1073741824)}G</td><td>{int(used/1073741824)}G</td></tr>
         </table>
         """
 
@@ -484,10 +490,9 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response.encode('utf-8'))
         
-        # restart the server is network iface changed
+        # taking the connection away from https server makes it unhappy. just restart ourselves
         if (credSetSuccessful == True):
-            self.server.server_close()
-            self.http_interface.go()
+            output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl","restart"," radar"], capture_output=True)
 
     def do_GET(self):
         # let super class to serve the file since that's what it does
