@@ -155,7 +155,9 @@ write_files:
     sudo cp radarwifi-service/radarwifi.service /etc/systemd/system
     sudo systemctl daemon-reload
     sudo systemctl status radar
+    sudo systemctl enable radar
     sudo systemctl status radarwifi
+    sudo systemctl enable radarwifi
 
     #
     # development set up
