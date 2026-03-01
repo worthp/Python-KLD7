@@ -100,7 +100,7 @@ write_files:
 
     # in case this is the first time this thing is connected to the interwebs
     # apt dont like it when the date is really wrong
-    sudo systemctl restart systemd-timesync
+    sudo systemctl restart systemd-timesyncd
     sleep 5 # give it some time to catch up
 
     # make sure where we are
