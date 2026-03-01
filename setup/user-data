@@ -64,6 +64,7 @@ write_files:
     After=multi-user.target
 
     [Service]
+    Type=simple
     User=radar
     WorkingDirectory=/home/radar/radar-service
     ExecStart=stdbuf -o0 /home/radar/.pyenvs/default/bin/python main.py -d /dev/ttyAMA0
@@ -80,10 +81,11 @@ write_files:
     After=multi-user.target
 
     [Service]
+    Type=simple
     User=radar
     WorkingDirectory=/home/radar/radar-service
     ExecStart=stdbuf -o0 /home/radar/.pyenvs/default/bin/python wificheck.py
-    Restart=no
+    Restart=always
 
     [Install]
     WantedBy=multi-user.target
