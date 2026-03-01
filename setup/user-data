@@ -153,10 +153,7 @@ write_files:
     mv Python-KLD7-main/radar/* radar-service
     mkdir radar-service/images
 
-    # install systemd radar services
-    sudo cp radar-service/radar.service /etc/systemd/system
-    sudo cp radar-service/radarwifi.service /etc/systemd/system
-    sudo systemctl daemon-reload
+    # check systemd radar services. 
     sudo systemctl status radar
     sudo systemctl enable radar
     sudo systemctl status radarwifi
