@@ -37,12 +37,12 @@ class HttpInterface:
 
     def doWifiAction(self):
         
-        logger.info(["/usr/bin/sudo", "/usr/bin/nmcli","con",f"{self.wifiAction}","netplan-wlan0-radar-ssid"])
-        return
+        if (self.wifiAction != None):
+            output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con",f"{self.wifiAction}","netplan-wlan0-radar-ssid"], capture_output=True)
+            logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
+            logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
 
-        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con",f"{self.wifiAction}","netplan-wlan0-radar-ssid"], capture_output=True)
-        logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
-        logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
+        self.wifiAction = None
             
     def init(self, controller:Controller):
         self.controller = controller
@@ -417,7 +417,6 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
         psk = form_data["passkey"][0]
 
         self.httpInterface.setWifiAction('up')
-        return
 
         # always use the same connection profile and set ssid and psk
         output = subprocess.run(["/usr/bin/sudo","/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi.ssid",ssid], capture_output=True)
