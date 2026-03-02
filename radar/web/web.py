@@ -17,12 +17,66 @@ from controller.controller import Controller
 server = None
 HOST_NAME = ""
 SERVER_PORT = 8080
+downWifi = False
+upAP = False
 
 logger = logging.getLogger(__name__)
 
 class HttpInterface:
     def __init__(self):
-        self.controller:Controller = None # type: ignore
+        self.isStopped = False
+
+        # poor man's enum
+        self.wifiActionUp = 'up'
+        self.wifiActionDown = 'down'
+
+        self.wifiAction = None 
+
+    def setWifiAction(self, action):
+        self.wifiAction = action
+
+    def doWifiAction(self):
+        
+        logger.info(["/usr/bin/sudo", "/usr/bin/nmcli","con",f"{self.wifiAction}","netplan-wlan0-radar-ssid"])
+        return
+
+        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con",f"{self.wifiAction}","netplan-wlan0-radar-ssid"], capture_output=True)
+        logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
+            
+    def init(self, controller:Controller):
+        self.controller = controller
+
+    def stop(self):
+        self.isStopped = True
+
+    def go(self):
+
+        RadarHttpRequestHandler.httpInterface = self
+        RadarHttpRequestHandler.controller = self.controller
+
+        server = http.HTTPServer((HOST_NAME, SERVER_PORT), RadarHttpRequestHandler)
+        
+        while (not self.isStopped):
+            server.handle_request()
+
+            # changing wifi connection. either bringing wifi connection up or down
+            # so we need to restart the socket server
+            if (self.wifiAction != None):
+                server.server_close()
+                server = None
+
+                self.doWifiAction()
+                server = http.HTTPServer((HOST_NAME, SERVER_PORT), RadarHttpRequestHandler)
+
+        logger.info(f'''web interface was stopped''')
+
+class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
+    controller:Controller = None # type: ignore
+    httpInterface:HttpInterface = None # type: ignore
+
+    def __init__(self, *args, directory=None, **kwargs):
+
         self.routes = {}
 
         # order matters here. keep / at the end; longer matches at the top
@@ -41,11 +95,11 @@ class HttpInterface:
         self.routes['/'] = self.homePage
         
         self.isStopped = False
+        super().__init__(*args, **kwargs)
         return
     
     def __del__(self):
         return
-
     
     def init(self, controller:Controller):
         self.controller = controller
@@ -362,6 +416,9 @@ class HttpInterface:
         ssid = form_data["ssid"][0]
         psk = form_data["passkey"][0]
 
+        self.httpInterface.setWifiAction('up')
+        return
+
         # always use the same connection profile and set ssid and psk
         output = subprocess.run(["/usr/bin/sudo","/usr/bin/nmcli","con","modify","netplan-wlan0-radar-ssid","wifi.ssid",ssid], capture_output=True)
         logger.info(f'''netplan-wlan0-radar-ssid ssid modify [{output.stdout.decode("utf-8")}]''')
@@ -371,17 +428,6 @@ class HttpInterface:
         logger.info(f'''netplan-wlan0-radar-ssid psk modify stdout [{output.stdout.decode("utf-8")}]''')
         logger.info(f'''netplan-wlan0-radar-ssid psk modify stderr [{output.stderr.decode("utf-8")}]''')
 
-        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","up","netplan-wlan0-radar-ssid"], capture_output=True)
-        logger.info(f'''netplan-wlan0-radar-ssid up stdout [{output.stdout.decode("utf-8")}]''')
-        logger.info(f'''netplan-wlan0-radar-ssid up stderr [{output.stderr.decode("utf-8")}]''')
-        m = re.match(r'(^Connection successfully activated).+', output.stdout.decode('utf-8'))
-
-        # Success
-        if (m != None):
-            return True
-        
-        # Fail
-        return False
         
     def hostRebootPage(self, path):
         
@@ -394,15 +440,8 @@ class HttpInterface:
         return self.hostControlPage(path)
 
     def forgetSSID(self, path):
-        
-        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/nmcli","con","down","netplan-wlan0-radar-ssid"], capture_output=True)
-        logger.info(f'''netplan-wlan0-radar-ssid down stdout [{output.stdout.decode("utf-8")}]''')
-        logger.info(f'''netplan-wlan0-radar-ssid down stderr [{output.stderr.decode("utf-8")}]''')
-
-        # taking the connection away from https server makes it unhappy. just restart ourselves
-        #self.server.server_close()
-        output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl","kill", "SIGTERM", "radar"], capture_output=True)
-
+        self.wifiAction = self.httpInterface.setWifiAction("down")
+        return f'<body><h3>Forgetting WiFi Credentials</h3></body>'
 
     def radarReset(self, path):
         self.controller.resetRadarPower()
@@ -444,27 +483,6 @@ class HttpInterface:
     </div>
     """
 
-    def go(self):
-
-        handler = HttpRequestHandler
-        handler.http_interface = self
-        self.server = http.HTTPServer((HOST_NAME, SERVER_PORT), handler)
-        self.server.timeout = 1
-        
-        while (not self.isStopped):
-            self.server.handle_request()
-
-        logger.info(f'''web interface was stopped''')
-
-
-class HttpRequestHandler(http.SimpleHTTPRequestHandler):
-    """
-    A custom handler to process HTTP requests.
-    Inherits from BaseHTTPRequestHandler to override standard methods.
-    """
-
-    http_interface:HttpInterface = None # type: ignore
-
     def log_message(self, format, *args):
         super().log_message(format, *args)
         return
@@ -482,8 +500,8 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         if 'application/x-www-form-urlencoded' in content_type:
             # Parse form data into a dictionary
             form_data = parse_qs(post_body_str)
-            credSetSuccessful = self.http_interface.setWifiCreds(form_data)
-            response = f"Successful [{credSetSuccessful}] Form Data Received: {form_data}"
+            self.setWifiCreds(form_data)
+            response = f"Resetting Wifi credentials on [{form_data['ssid']} ..."
         else:
             response = f"Raw Data Received: {post_body_str}"
      
@@ -492,11 +510,6 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response.encode('utf-8'))
         
-        # taking the connection away from https server makes it unhappy. just restart ourselves
-        if (credSetSuccessful == True):
-            self.server.server_close()
-            output = subprocess.run(["/usr/bin/sudo", "/usr/bin/systemctl", "kill", "SIGTERM", "radar"], capture_output=True)
-
     def do_GET(self):
         # let super class to serve the file since that's what it does
         translated_path = self.translate_path(self.path)
@@ -513,20 +526,15 @@ class HttpRequestHandler(http.SimpleHTTPRequestHandler):
         # Note: Content must be encoded to bytes using "utf-8"
         self.wfile.write(bytes("<!DOCTYPE html>\n<html>", "utf-8"))
 
-        self.wfile.write(bytes(self.http_interface.htmlHeader(self.path), "utf-8"))
+        self.wfile.write(bytes(self.htmlHeader(self.path), "utf-8"))
         self.wfile.write(bytes("<body>", "utf-8"))
 
-        self.wfile.write(bytes(self.http_interface.pageHeader(self.path), "utf-8"))
+        self.wfile.write(bytes(self.pageHeader(self.path), "utf-8"))
         if (self.path.endswith('/images') or self.path.endswith('images/')):
-            section = self.http_interface.imagesPage(self.path, translated_path)
+            section = self.imagesPage(self.path, translated_path)
             self.wfile.write(bytes(section, "utf-8"))
         else:
-            self.wfile.write(bytes(self.http_interface.handleGetRequest(self.path), "utf-8"))
+            self.wfile.write(bytes(self.handleGetRequest(self.path), "utf-8"))
 
         self.wfile.write(bytes("</body>", "utf-8"))
         self.wfile.write(bytes("</html>", "utf-8"))
-
-        # gotta restart since the network iface changed. just like with setWifiCreds
-        if (self.path.endswith('forgetssid') or self.path.endswith('forgetssid/')):
-            # give some time for radar-ap to come up
-            pass

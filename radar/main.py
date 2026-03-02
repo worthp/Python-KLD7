@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 #making these global to attempt better clean up upon signal handling
 camera = None
-wif = HttpInterface()
 controller = Controller()
+wif = HttpInterface()
 
 def handle_signal(signum, frame):
     logger.info(f'''caught signal [{signum}]frame{frame}] thread[{threading.current_thread().name}]. exiting''')
@@ -53,7 +53,7 @@ def main():
                 logger.info(f"radar inited[{radar._inited}] with device[{args.device}]")
             else:
                 logger.info(f"radar failed to init[{r}] with device[{args.device}]")
-                exit
+                exit()
 
         if (isRaspberryPi and args.radar_interface):
             camera = Picam()
