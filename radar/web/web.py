@@ -81,6 +81,7 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
 
         # order matters here. keep / at the end; longer matches at the top
         self.routes['/hostcontrol/setWifiCreds'] = self.setWifiCreds
+        self.routes['/hostcontrol/changeHostname'] = self.changeHostname
         self.routes['/hostcontrol/reboot'] = self.hostRebootPage
         self.routes['/hostcontrol/forgetssid'] = self.forgetSSID
         self.routes['/hostcontrol'] = self.hostControlPage
@@ -391,12 +392,24 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
             <tr><td>{int(free/total*100)}</td><td>{int(total/1073741824)}G</td><td>{int(used/1073741824)}G</td></tr>
         </table>
         """
+        section += f"""
+        <div id="hostname-change-form">
+        <h3>Change Hostname</h3>
+        <form action="/hostcontrol/changeHostname" method="post">
+            <p>
+                <label for="hostname">New Hostname:</label>
+                <input type="text" id="hostname" name="hostname" />
+            </p>
+            <input type="submit" value="Change Hostname"/>
+        </form> 
+        </div>
+        """
 
         if (onRadarAP):
             section += f"""
         <div id="wifi-credentials-form">
         <h3>Enter Credentials to Local Network</h3>
-        <form action="/setWifiCreds" method="post">
+        <form action="/hostcontrol/setWifiCreds" method="post">
             <p>
                 <label for="ssid">ssid:</label>
                 <input type="text" id="ssid" name="ssid" />
@@ -410,6 +423,18 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
         </div>
         """
         return section
+
+    def changeHostname(self, form_data):
+        hostname = form_data["hostname"]
+        print(f'["/usr/bin/sudo","/usr/bin/hostnamectl","set-hostname", {hostname}])')
+
+        output = subprocess.run(["/usr/bin/sudo","/usr/bin/hostnamectl","set-hostname", hostname])
+        logger.info(f'''hostnamectl set-hostname {hostname} ssid modify [{output.stdout.decode("utf-8")}]''')
+        logger.info(f'''hostnamectl set-hostname {hostname} ssid modify [{output.stderr.decode("utf-8")}]''')
+
+        # just reboot cuz whot the fuck knows which part of the network frameworks is gonna get confused
+        output = subprocess.run(["/usr/bin/sudo","/usr/bin/reboot"])
+        return "Failed to change hostname"
 
     def setWifiCreds(self, form_data):
 
@@ -488,7 +513,8 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
     
     
     def do_POST(self):
-        logger.info("setting wifi creds")
+        # make sure '/' is in the route map
+            
         content_length = int(self.headers.get('Content-Length', 0))
 
         post_body_bytes = self.rfile.read(content_length)
@@ -499,8 +525,18 @@ class RadarHttpRequestHandler(http.SimpleHTTPRequestHandler):
         if 'application/x-www-form-urlencoded' in content_type:
             # Parse form data into a dictionary
             form_data = parse_qs(post_body_str)
-            self.setWifiCreds(form_data)
-            response = f"Resetting Wifi credentials on [{form_data['ssid']} ..."
+            #self.setWifiCreds(form_data)
+
+            function = None
+            for r,f in self.routes.items():
+                if (self.path.startswith(r)):
+                    function = f
+                    break
+
+            if (function != None):
+                function(form_data)
+
+            response = f"I don't know what to do with this form [{self.path} ..."
         else:
             response = f"Raw Data Received: {post_body_str}"
      
