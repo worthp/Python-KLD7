@@ -1,6 +1,6 @@
 #cloud-config
 hostname: radar
-manage_etc_hosts: true
+manage_etc_hosts: false
 packages:
 - avahi-daemon
 apt:
@@ -180,3 +180,14 @@ write_files:
     rm -r Python-KLD7-main
     sudo nmcli connection delete 'WIFICD2D92-5G'
     sed -i '/WIFICD2D92-5G/d' $0
+- path: /home/radar/runtest.sh
+  defer: true
+  owner: radar:radar
+  permissions: '0755'
+  content: |
+    #!/bin/bash
+    touch runcmd.txt
+    echo 'did it work?'
+runcmd:
+ - sudo -u radar sh -c 'cd /home/radar; sh -x ./raspi-setup.sh > raspi-config.log'
+
